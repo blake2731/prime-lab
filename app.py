@@ -1,6 +1,10 @@
 import numpy as np
 import streamlit as st
 
+from prime_lab.certification import (
+    certification_frontier,
+    confirmed_prime_mask,
+)
 from prime_lab.filters import filter_candidates
 from ui.candidate_grid import build_candidate_figure
 from ui.sieve_animation import build_sieve_animation
@@ -17,6 +21,14 @@ FILTER_PRIMES = (
     23,
     29,
     31,
+    37,
+    41,
+    43,
+    47,
+    53,
+    59,
+    61,
+    67,
 )
 
 
@@ -97,6 +109,16 @@ values, survives, eliminated_by = filter_candidates(
     applied_primes,
 )
 
+confirmed = confirmed_prime_mask(
+    values,
+    survives,
+    applied_primes,
+)
+
+frontier = certification_frontier(applied_primes)
+
+confirmed_count = int(np.count_nonzero(confirmed))
+
 
 initial_candidates = int(np.count_nonzero(values >= 2))
 
@@ -115,7 +137,7 @@ else:
 survival_rate = survivor_count / initial_candidates if initial_candidates else 0
 
 
-metric_1, metric_2, metric_3, metric_4 = st.columns(4)
+metric_1, metric_2, metric_3, metric_4, metric_5 = st.columns(5)
 
 metric_1.metric(
     "Integers",
@@ -130,12 +152,18 @@ metric_2.metric(
 )
 
 metric_3.metric(
+    "Confirmed primes",
+    f"{confirmed_count:,}",
+    border=True,
+)
+
+metric_4.metric(
     "Eliminated",
     f"{eliminated_count:,}",
     border=True,
 )
 
-metric_4.metric(
+metric_5.metric(
     "Candidate survival",
     f"{survival_rate:.2%}",
     border=True,
@@ -158,6 +186,7 @@ with st.container(border=True):
             survives,
             eliminated_by,
             active_prime,
+            confirmed,
         )
 
     st.plotly_chart(
@@ -188,9 +217,17 @@ with st.container(border=True):
 
             st.code(f"n % {active_prime} == 0")
 
+            if frontier is not None:
+                st.caption(
+                    f"Every surviving candidate below {frontier:,} "
+                    "is now mathematically confirmed prime."
+                )
+
             st.caption(
-                "Numbers removed by earlier filters appear in gray. "
-                "Numbers removed by the current filter appear in amber."
+                "Gray marks resolved composites. "
+                "Blue marks unresolved candidates. "
+                "Teal marks confirmed primes. "
+                "Amber marks the current elimination event."
             )
 
         with detail_right:
@@ -200,7 +237,13 @@ with st.container(border=True):
                 border=True,
             )
 
+            st.metric(
+                "Confirmed primes",
+                f"{confirmed_count:,}",
+                border=True,
+            )
+
     st.caption(
-        "Survival does not prove primality. "
-        "It only means the number has survived every filter applied so far."
+        "A surviving candidate becomes confirmed once every possible "
+        "prime divisor up to its square root has been ruled out."
     )
