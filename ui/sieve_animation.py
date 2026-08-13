@@ -3,6 +3,10 @@ from collections.abc import Sequence
 import numpy as np
 import plotly.graph_objects as go
 
+from prime_lab.certification import (
+    certification_frontier,
+    confirmed_prime_mask,
+)
 from prime_lab.filters import filter_candidates
 from ui.candidate_grid import build_candidate_figure
 
@@ -63,11 +67,22 @@ def build_sieve_animation(
 
     final_removed = int(np.count_nonzero(final_eliminated_by == final_prime))
 
+    final_confirmed = confirmed_prime_mask(
+        final_values,
+        final_survives,
+        primes,
+    )
+
+    final_confirmed_count = int(np.count_nonzero(final_confirmed))
+
+    final_frontier = certification_frontier(primes)
+
     figure = build_candidate_figure(
         final_values,
         final_survives,
         final_eliminated_by,
         final_prime,
+        final_confirmed,
     )
 
     figure.update_layout(
@@ -81,7 +96,9 @@ def build_sieve_animation(
         annotations=_status_annotation(
             f"Filter {final_prime}  |  "
             f"removed {final_removed:,}  |  "
-            f"remaining {final_remaining:,}"
+            f"remaining {final_remaining:,}  |  "
+            f"confirmed {final_confirmed_count:,}  |  "
+            f"proof frontier n < {final_frontier:,}"
         ),
     )
 
@@ -158,11 +175,22 @@ def build_sieve_animation(
 
         remaining_now = int(np.count_nonzero(stage_survives))
 
+        confirmed_now = confirmed_prime_mask(
+            stage_values,
+            stage_survives,
+            stage_primes,
+        )
+
+        confirmed_count = int(np.count_nonzero(confirmed_now))
+
+        frontier = certification_frontier(stage_primes)
+
         stage_figure = build_candidate_figure(
             stage_values,
             stage_survives,
             stage_eliminated_by,
             prime,
+            confirmed_now,
         )
 
         frame_name = f"prime_{prime}"
@@ -178,7 +206,9 @@ def build_sieve_animation(
                     annotations=_status_annotation(
                         f"Filter {prime}  |  "
                         f"removed {removed_now:,}  |  "
-                        f"remaining {remaining_now:,}"
+                        f"remaining {remaining_now:,}  |  "
+                        f"confirmed {confirmed_count:,}  |  "
+                        f"proof frontier n < {frontier:,}"
                     )
                 ),
             )
