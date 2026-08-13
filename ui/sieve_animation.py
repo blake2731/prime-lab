@@ -110,6 +110,7 @@ def build_sieve_animation(
     start: int,
     end: int,
     filter_primes: Sequence[int],
+    grid_width: int | None = None,
 ) -> go.Figure:
     """Build deterministic rainfall playback for the sieve sequence."""
 
@@ -127,6 +128,7 @@ def build_sieve_animation(
             survives,
             eliminated_by,
             None,
+            grid_width=grid_width,
         )
 
     final_values, final_survives, final_eliminated_by = filter_candidates(
@@ -152,6 +154,7 @@ def build_sieve_animation(
         final_eliminated_by,
         None,
         final_confirmed,
+        grid_width=grid_width,
     )
 
     figure.update_layout(
@@ -201,6 +204,7 @@ def build_sieve_animation(
         previous_eliminated_by,
         None,
         previous_confirmed,
+        grid_width=grid_width,
     )
 
     frames.append(
@@ -321,6 +325,7 @@ def build_sieve_animation(
                 prime,
                 resolved_confirmed,
                 current_elimination,
+                grid_width=grid_width,
             )
 
             resolved_composite_count = int(
@@ -362,6 +367,7 @@ def build_sieve_animation(
             stage_eliminated_by,
             None,
             stage_confirmed,
+            grid_width=grid_width,
         )
 
         remaining_now = int(
