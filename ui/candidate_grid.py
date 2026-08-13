@@ -8,6 +8,9 @@ def build_candidate_figure(
     eliminated_by: np.ndarray,
     active_prime: int | None,
     confirmed: np.ndarray | None = None,
+    active_elimination_mask: np.ndarray | None = None,
+    scan_mask: np.ndarray | None = None,
+    include_hover: bool = True,
 ) -> go.Figure:
     """Create a precise tiled candidate field."""
 
@@ -30,12 +33,6 @@ def build_candidate_figure(
         dtype=float,
     )
 
-    hover_text = np.full(
-        total_cells,
-        "",
-        dtype=object,
-    )
-
     status[:count] = 0
 
     survivor_indices = np.flatnonzero(
@@ -51,85 +48,130 @@ def build_candidate_figure(
 
         status[confirmed_indices] = 3
 
-    if active_prime is not None:
+    if active_elimination_mask is not None:
+        current_mask = active_elimination_mask
+
+    elif active_prime is not None:
         current_mask = (
             eliminated_by == active_prime
         )
 
-        current_indices = np.flatnonzero(
-            current_mask
+    else:
+        current_mask = np.zeros(
+            values.shape,
+            dtype=bool,
         )
 
-        status[current_indices] = 2
+    current_indices = np.flatnonzero(
+        current_mask
+    )
 
-    for index, value in enumerate(values):
-        if (
-            confirmed is not None
-            and confirmed[index]
-        ):
-            state = "Confirmed prime"
+    status[current_indices] = 2
 
-        elif survives[index]:
-            state = "Surviving candidate"
-
-        elif (
-            active_prime is not None
-            and eliminated_by[index] == active_prime
-        ):
-            state = (
-                f"Removed by prime {active_prime}"
-            )
-
-        elif eliminated_by[index] > 0:
-            state = (
-                "Previously eliminated "
-                f"by prime {eliminated_by[index]}"
-            )
-
-        else:
-            state = "Not a prime candidate"
-
-        hover_text[index] = (
-            f"<b>{int(value):,}</b>"
-            f"<br>{state}"
+    if scan_mask is not None:
+        scan_indices = np.flatnonzero(
+            scan_mask
         )
+
+        status[scan_indices] = 4
+
+    hover_text = None
+
+    if include_hover:
+        hover_text = np.full(
+            total_cells,
+            "",
+            dtype=object,
+        )
+
+        for index, value in enumerate(values):
+            if (
+                scan_mask is not None
+                and scan_mask[index]
+            ):
+                if active_prime is None:
+                    state = "Current scan"
+                else:
+                    state = (
+                        f"Testing with prime {active_prime}"
+                    )
+
+            elif current_mask[index]:
+                state = (
+                    f"Removed by prime {active_prime}"
+                )
+
+            elif (
+                confirmed is not None
+                and confirmed[index]
+            ):
+                state = "Confirmed prime"
+
+            elif survives[index]:
+                state = "Surviving candidate"
+
+            elif eliminated_by[index] > 0:
+                state = (
+                    "Previously eliminated "
+                    f"by prime {eliminated_by[index]}"
+                )
+
+            else:
+                state = "Not a prime candidate"
+
+            hover_text[index] = (
+                f"<b>{int(value):,}</b>"
+                f"<br>{state}"
+            )
 
     status_grid = status.reshape(
         grid_height,
         grid_width,
     )
 
-    hover_grid = hover_text.reshape(
-        grid_height,
-        grid_width,
-    )
+    if hover_text is None:
+        hover_grid = None
+    else:
+        hover_grid = hover_text.reshape(
+            grid_height,
+            grid_width,
+        )
 
     figure = go.Figure()
 
+    heatmap_kwargs = {
+        "z": status_grid,
+        "zmin": 0,
+        "zmax": 4,
+        "colorscale": [
+            [0.000000, "#E3E8EF"],
+            [0.124999, "#E3E8EF"],
+            [0.125000, "#2457E6"],
+            [0.374999, "#2457E6"],
+            [0.375000, "#D97706"],
+            [0.624999, "#D97706"],
+            [0.625000, "#008A7C"],
+            [0.874999, "#008A7C"],
+            [0.875000, "#F3C969"],
+            [1.000000, "#F3C969"],
+        ],
+        "showscale": False,
+        "xgap": 1,
+        "ygap": 1,
+        "hoverongaps": False,
+    }
+
+    if include_hover:
+        heatmap_kwargs["text"] = hover_grid
+        heatmap_kwargs["hovertemplate"] = (
+            "%{text}<extra></extra>"
+        )
+    else:
+        heatmap_kwargs["hoverinfo"] = "skip"
+
     figure.add_trace(
         go.Heatmap(
-            z=status_grid,
-            text=hover_grid,
-            zmin=0,
-            zmax=3,
-            colorscale=[
-                [0.000000, "#E3E8EF"],
-                [0.166666, "#E3E8EF"],
-                [0.166667, "#2457E6"],
-                [0.499999, "#2457E6"],
-                [0.500000, "#D97706"],
-                [0.833332, "#D97706"],
-                [0.833333, "#008A7C"],
-                [1.000000, "#008A7C"],
-            ],
-            showscale=False,
-            xgap=1,
-            ygap=1,
-            hoverongaps=False,
-            hovertemplate=(
-                "%{text}"
-                "<extra></extra>"
-            ),
+            **heatmap_kwargs
         )
     )
 
@@ -149,6 +191,10 @@ def build_candidate_figure(
         (
             "Removed by current filter",
             "#D97706",
+        ),
+        (
+            "Current scan",
+            "#F3C969",
         ),
     )
 
