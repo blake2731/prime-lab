@@ -61,7 +61,11 @@ def test_residue_figure_maps_60_values_into_30_rows():
 
     assert int(
         np.sum(unresolved_bar.x)
-    ) == 2
+    ) == 3
+
+    assert int(unresolved_bar.x[19]) == 1
+    assert int(unresolved_bar.x[23]) == 1
+    assert int(unresolved_bar.x[29]) == 1
 
     assert int(
         np.sum(confirmed_bar.x)
