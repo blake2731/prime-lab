@@ -173,80 +173,173 @@ metric_5.metric(
 
 
 with st.container(border=True):
-    st.subheader("Candidate landscape")
+    st.subheader("Projection lab")
 
-    playback_tab, residue_tab = st.tabs(
-        [
-            "Sieve playback",
-            "Residue structure",
-        ]
+    square_width = max(
+        10,
+        int(np.ceil(np.sqrt(range_size))),
     )
 
-    with playback_tab:
+    projection_options = [
+        "Square fit",
+        "Fixed width",
+    ]
+
+    if active_prime is not None:
+        projection_options.append(
+            "Active prime width"
+        )
+
+    projection_options.append(
+        "Modulo 30"
+    )
+
+    projection_control, projection_detail = st.columns(
+        [1, 2]
+    )
+
+    with projection_control:
+        projection = st.selectbox(
+            "Projection",
+            projection_options,
+            key="projection_mode",
+        )
+
+    projection_grid_width = None
+
+    with projection_detail:
+        if projection == "Square fit":
+            st.metric(
+                "Grid width",
+                f"{square_width:,}",
+                border=True,
+            )
+
+            projection_grid_width = None
+
+        elif projection == "Fixed width":
+            maximum_width = max(
+                2,
+                min(
+                    250,
+                    max(range_size, 2),
+                ),
+            )
+
+            default_width = min(
+                square_width,
+                maximum_width,
+            )
+
+            projection_grid_width = int(
+                st.number_input(
+                    "Grid width",
+                    min_value=2,
+                    max_value=maximum_width,
+                    value=default_width,
+                    step=1,
+                    key="fixed_projection_width",
+                )
+            )
+
+        elif projection == "Active prime width":
+            projection_grid_width = int(
+                active_prime
+            )
+
+            st.metric(
+                "Grid width",
+                f"{projection_grid_width:,}",
+                border=True,
+            )
+
+        else:
+            st.metric(
+                "Wheel modulus",
+                "30",
+                border=True,
+            )
+
+    if projection == "Modulo 30":
         if applied_primes:
-            figure = build_sieve_animation(
+            projection_figure = build_residue_animation(
                 range_start,
                 range_end,
                 applied_primes,
             )
 
         else:
-            figure = build_candidate_figure(
+            projection_figure = build_residue_figure(
                 values,
                 survives,
                 eliminated_by,
-                active_prime,
                 confirmed,
+                active_prime,
             )
 
-        st.plotly_chart(
-            figure,
-            width="stretch",
-            config={
-                "displaylogo": False,
-            },
-            key="candidate_landscape",
-        )
+        chart_key = "projection_modulo_30"
 
-    with residue_tab:
+    else:
         if applied_primes:
-            residue_figure = build_residue_animation(
+            projection_figure = build_sieve_animation(
                 range_start,
                 range_end,
                 applied_primes,
+                grid_width=projection_grid_width,
             )
 
         else:
-            residue_figure = build_residue_figure(
+            projection_figure = build_candidate_figure(
                 values,
                 survives,
                 eliminated_by,
-                confirmed,
                 active_prime,
+                confirmed,
+                grid_width=projection_grid_width,
             )
 
-        st.plotly_chart(
-            residue_figure,
-            width="stretch",
-            config={
-                "displaylogo": False,
-            },
-            key="residue_structure",
+        chart_key = "projection_candidate_grid"
+
+    st.plotly_chart(
+        projection_figure,
+        width="stretch",
+        config={
+            "displaylogo": False,
+        },
+        key=chart_key,
+    )
+
+    if projection == "Square fit":
+        st.caption(
+            f"Square fit wraps consecutive integers every {square_width:,} cells. "
+            "It is useful for overall density, but some alignments can be created by the chosen width."
         )
 
-        if active_prime is None or active_prime < 5:
-            st.caption(
-                "Apply filters through prime 5 to expose the full modulo 30 "
-                "candidate corridors created by eliminating multiples of 2, 3, and 5."
-            )
+    elif projection == "Fixed width":
+        st.caption(
+            f"Fixed width wraps consecutive integers every {projection_grid_width:,} cells. "
+            "Change only the width to test whether a visible pattern survives a different projection."
+        )
 
-        else:
-            st.caption(
-                "Replay the structure to watch composite residue lanes collapse, "
-                "then watch newly proven primes appear only after each filter is complete. "
-                "After prime 5, only residues 1, 7, 11, 13, 17, 19, 23, and 29 "
-                "remain prime eligible above 5."
-            )
+    elif projection == "Active prime width":
+        st.caption(
+            f"The field is wrapped every {active_prime} integers. "
+            f"Values with the same remainder modulo {active_prime} align vertically, "
+            "making the active filter geometry explicit."
+        )
+
+    elif active_prime is None or active_prime < 5:
+        st.caption(
+            "Apply filters through prime 5 to expose the full modulo 30 candidate corridors "
+            "created by eliminating multiples of 2, 3, and 5."
+        )
+
+    else:
+        st.caption(
+            "Modulo 30 groups integers by residue class. "
+            "After prime 5, only residues 1, 7, 11, 13, 17, 19, 23, and 29 "
+            "remain prime eligible above 5."
+        )
 
 with st.container(border=True):
     st.subheader("Current filter")
@@ -262,7 +355,8 @@ with st.container(border=True):
 
         with detail_left:
             st.write(
-                f"Every prime filter through {active_prime} " f"has now been applied."
+                f"Every prime filter through {active_prime} "
+                "has now been applied."
             )
 
             st.code(f"n % {active_prime} == 0")
