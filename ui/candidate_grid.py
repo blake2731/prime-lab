@@ -9,21 +9,39 @@ def build_candidate_figure(
     active_prime: int | None,
     confirmed: np.ndarray | None = None,
     current_elimination: np.ndarray | None = None,
+    grid_width: int | None = None,
 ) -> go.Figure:
     """Create a precise tiled candidate field."""
 
     count = len(values)
 
-    grid_width = max(
-        10,
-        int(np.ceil(np.sqrt(count))),
-    )
+    if grid_width is None:
+        resolved_grid_width = max(
+            10,
+            int(np.ceil(np.sqrt(count))),
+        )
+
+    else:
+        if grid_width < 1:
+            raise ValueError(
+                "grid_width must be at least 1"
+            )
+
+        resolved_grid_width = int(
+            grid_width
+        )
 
     grid_height = int(
-        np.ceil(count / grid_width)
+        np.ceil(
+            count
+            / resolved_grid_width
+        )
     )
 
-    total_cells = grid_width * grid_height
+    total_cells = (
+        resolved_grid_width
+        * grid_height
+    )
 
     status = np.full(
         total_cells,
@@ -108,12 +126,12 @@ def build_candidate_figure(
 
     status_grid = status.reshape(
         grid_height,
-        grid_width,
+        resolved_grid_width,
     )
 
     hover_grid = hover_text.reshape(
         grid_height,
-        grid_width,
+        resolved_grid_width,
     )
 
     figure = go.Figure()
