@@ -1,0 +1,20 @@
+[theme]
+base = "light"
+primaryColor = "#2457E6"
+backgroundColor = "#F6F8FB"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#172033"
+linkColor = "#2457E6"
+borderColor = "#DCE3EC"
+baseRadius = "0.5rem"
+buttonRadius = "0.4rem"
+showWidgetBorder = true
+showSidebarBorder = true
+baseFontSize = 16
+
+chartCategoricalColors = [
+    "#2457E6",
+    "#AAB4C3",
+    "#D97706",
+    "#243247"
+]
