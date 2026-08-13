@@ -7,6 +7,7 @@ from prime_lab.certification import (
 )
 from prime_lab.filters import filter_candidates
 from ui.candidate_grid import build_candidate_figure
+from ui.residue_animation import build_residue_animation
 from ui.residue_structure import build_residue_figure
 from ui.sieve_animation import build_sieve_animation
 
@@ -208,13 +209,21 @@ with st.container(border=True):
         )
 
     with residue_tab:
-        residue_figure = build_residue_figure(
-            values,
-            survives,
-            eliminated_by,
-            confirmed,
-            active_prime,
-        )
+        if applied_primes:
+            residue_figure = build_residue_animation(
+                range_start,
+                range_end,
+                applied_primes,
+            )
+
+        else:
+            residue_figure = build_residue_figure(
+                values,
+                survives,
+                eliminated_by,
+                confirmed,
+                active_prime,
+            )
 
         st.plotly_chart(
             residue_figure,
@@ -233,9 +242,10 @@ with st.container(border=True):
 
         else:
             st.caption(
-                "For primes greater than 5, only residues "
-                "1, 7, 11, 13, 17, 19, 23, and 29 modulo 30 can contain primes. "
-                "Later filters punch periodic gaps through those surviving corridors."
+                "Replay the structure to watch composite residue lanes collapse, "
+                "then watch newly proven primes appear only after each filter is complete. "
+                "After prime 5, only residues 1, 7, 11, 13, 17, 19, 23, and 29 "
+                "remain prime eligible above 5."
             )
 
 with st.container(border=True):
