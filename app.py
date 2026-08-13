@@ -6,6 +6,7 @@ from prime_lab.certification import (
     confirmed_prime_mask,
 )
 from prime_lab.filters import filter_candidates
+from prime_lab.sonification import render_residue_wav
 from ui.candidate_grid import build_candidate_figure
 from ui.residue_animation import build_residue_animation
 from ui.residue_structure import build_residue_figure
@@ -340,6 +341,71 @@ with st.container(border=True):
             "After prime 5, only residues 1, 7, 11, 13, 17, 19, 23, and 29 "
             "remain prime eligible above 5."
         )
+
+    if projection == "Modulo 30":
+        with st.expander(
+            "Listen to confirmed primes",
+            expanded=False,
+        ):
+            st.write(
+                "The modulo 30 grid becomes a deterministic sequencer. "
+                "Horizontal quotient k is time. Residue r is pitch. "
+                "Only mathematically confirmed primes sound."
+            )
+
+            sound_control, sound_detail = st.columns(
+                [1, 2]
+            )
+
+            with sound_control:
+                sonification_bpm = st.select_slider(
+                    "Tempo",
+                    options=[
+                        120,
+                        180,
+                        240,
+                        300,
+                        360,
+                        480,
+                    ],
+                    value=240,
+                    format_func=lambda value: f"{value} BPM",
+                    key="prime_sonification_bpm",
+                )
+
+            with sound_detail:
+                st.code(
+                    "frequency = 220 × 2^(r / 30) Hz"
+                )
+
+                st.caption(
+                    "Residue position maps continuously across one octave. "
+                    "Values sharing the same quotient sound together as a chord."
+                )
+
+            if confirmed_count == 0:
+                st.info(
+                    "No primes are mathematically confirmed at this filter stage yet."
+                )
+
+            else:
+                sonification_audio = render_residue_wav(
+                    values,
+                    confirmed,
+                    modulus=30,
+                    bpm=int(sonification_bpm),
+                )
+
+                if sonification_audio:
+                    st.audio(
+                        sonification_audio,
+                        format="audio/wav",
+                    )
+
+                    st.caption(
+                        f"Sounding {confirmed_count:,} confirmed primes. "
+                        "Playback stops at the last confirmed prime so unresolved candidates are never presented as primes."
+                    )
 
 with st.container(border=True):
     st.subheader("Current filter")
