@@ -1,10 +1,9 @@
-import time
-
 import numpy as np
 import streamlit as st
 
 from prime_lab.filters import filter_candidates
 from ui.candidate_grid import build_candidate_figure
+from ui.sieve_animation import build_sieve_animation
 
 FILTER_PRIMES = (
     2,
@@ -36,7 +35,7 @@ st.caption("Computational Number Theory Laboratory  •  Candidate Filter Visual
 with st.container(border=True):
     st.subheader("Experiment controls")
 
-    col_start, col_end, col_filter, col_play = st.columns([1, 1, 1.25, 0.8])
+    col_start, col_end, col_filter = st.columns([1, 1, 1.25])
 
     with col_start:
         range_start = st.number_input(
@@ -67,17 +66,6 @@ with st.container(border=True):
             format_func=lambda value: (
                 "No filters" if value is None else f"Prime {value}"
             ),
-        )
-
-    with col_play:
-        st.write("")
-
-        play_animation = st.button(
-            "Run sequence",
-            type="primary",
-            icon=":material/play_arrow:",
-            width="stretch",
-            disabled=active_prime is None,
         )
 
 
@@ -157,112 +145,29 @@ metric_4.metric(
 with st.container(border=True):
     st.subheader("Candidate landscape")
 
-    animation_status = st.empty()
-
-    chart_placeholder = st.empty()
-
-    if play_animation and applied_primes:
-        (
-            initial_values,
-            initial_survives,
-            initial_eliminated_by,
-        ) = filter_candidates(
+    if applied_primes:
+        figure = build_sieve_animation(
             range_start,
             range_end,
-            (),
+            applied_primes,
         )
-
-        animation_status.caption("Starting candidate population")
-
-        chart_placeholder.plotly_chart(
-            build_candidate_figure(
-                initial_values,
-                initial_survives,
-                initial_eliminated_by,
-                None,
-            ),
-            width="stretch",
-            config={
-                "displaylogo": False,
-            },
-            key="animation_start",
-        )
-
-        time.sleep(0.6)
-
-        for step, prime in enumerate(applied_primes):
-            stage_primes = applied_primes[: step + 1]
-
-            (
-                stage_values,
-                stage_survives,
-                stage_eliminated_by,
-            ) = filter_candidates(
-                range_start,
-                range_end,
-                stage_primes,
-            )
-
-            removed_now = int(np.count_nonzero(stage_eliminated_by == prime))
-
-            remaining_now = int(np.count_nonzero(stage_survives))
-
-            animation_status.markdown(
-                f"**Filter {prime}**  "
-                f"Removed `{removed_now:,}` candidates  "
-                f"Remaining `{remaining_now:,}`"
-            )
-
-            chart_placeholder.plotly_chart(
-                build_candidate_figure(
-                    stage_values,
-                    stage_survives,
-                    stage_eliminated_by,
-                    prime,
-                ),
-                width="stretch",
-                config={
-                    "displaylogo": False,
-                },
-                key=f"animation_hit_{prime}",
-            )
-
-            time.sleep(0.75)
-
-            if prime != applied_primes[-1]:
-                chart_placeholder.plotly_chart(
-                    build_candidate_figure(
-                        stage_values,
-                        stage_survives,
-                        stage_eliminated_by,
-                        None,
-                    ),
-                    width="stretch",
-                    config={
-                        "displaylogo": False,
-                    },
-                    key=f"animation_settle_{prime}",
-                )
-
-                time.sleep(0.22)
 
     else:
-        animation_status.empty()
-
-        chart_placeholder.plotly_chart(
-            build_candidate_figure(
-                values,
-                survives,
-                eliminated_by,
-                active_prime,
-            ),
-            width="stretch",
-            config={
-                "displaylogo": False,
-            },
-            key="candidate_landscape_static",
+        figure = build_candidate_figure(
+            values,
+            survives,
+            eliminated_by,
+            active_prime,
         )
 
+    st.plotly_chart(
+        figure,
+        width="stretch",
+        config={
+            "displaylogo": False,
+        },
+        key="candidate_landscape",
+    )
 
 with st.container(border=True):
     st.subheader("Current filter")
