@@ -1,3 +1,5 @@
+import numpy as np
+
 from ui.sieve_animation import build_sieve_animation
 
 
@@ -83,3 +85,29 @@ def test_rainfall_frame_sequence_is_deterministic():
     ]
 
     assert first_names == second_names
+
+
+def test_sieve_animation_preserves_explicit_projection_width():
+    figure = build_sieve_animation(
+        1,
+        30,
+        (
+            2,
+            3,
+            5,
+        ),
+        grid_width=7,
+    )
+
+    final_heatmap = figure.data[0]
+    start_heatmap = figure.frames[0].data[0]
+
+    assert np.asarray(final_heatmap.z).shape == (
+        5,
+        7,
+    )
+
+    assert np.asarray(start_heatmap.z).shape == (
+        5,
+        7,
+    )
