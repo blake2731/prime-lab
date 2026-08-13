@@ -8,6 +8,7 @@ def build_candidate_figure(
     eliminated_by: np.ndarray,
     active_prime: int | None,
     confirmed: np.ndarray | None = None,
+    current_elimination: np.ndarray | None = None,
 ) -> go.Figure:
     """Create a precise tiled candidate field."""
 
@@ -51,16 +52,28 @@ def build_candidate_figure(
 
         status[confirmed_indices] = 3
 
-    if active_prime is not None:
+    if current_elimination is not None:
+        current_mask = np.asarray(
+            current_elimination,
+            dtype=bool,
+        )
+
+    elif active_prime is not None:
         current_mask = (
             eliminated_by == active_prime
         )
 
-        current_indices = np.flatnonzero(
-            current_mask
+    else:
+        current_mask = np.zeros(
+            values.shape,
+            dtype=bool,
         )
 
-        status[current_indices] = 2
+    current_indices = np.flatnonzero(
+        current_mask
+    )
+
+    status[current_indices] = 2
 
     for index, value in enumerate(values):
         if (
@@ -72,12 +85,11 @@ def build_candidate_figure(
         elif survives[index]:
             state = "Surviving candidate"
 
-        elif (
-            active_prime is not None
-            and eliminated_by[index] == active_prime
-        ):
+        elif current_mask[index]:
             state = (
                 f"Removed by prime {active_prime}"
+                if active_prime is not None
+                else "Currently eliminated"
             )
 
         elif eliminated_by[index] > 0:
