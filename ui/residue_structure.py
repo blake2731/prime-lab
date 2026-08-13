@@ -13,12 +13,43 @@ PRIME_ELIGIBLE_RESIDUES = tuple(
 )
 
 
+def _current_elimination_mask(
+    values: np.ndarray,
+    eliminated_by: np.ndarray,
+    active_prime: int | None,
+    current_elimination: np.ndarray | None,
+) -> np.ndarray:
+    """Resolve which cells belong to the current elimination event."""
+
+    if current_elimination is not None:
+        mask = np.asarray(
+            current_elimination,
+            dtype=bool,
+        )
+
+        if mask.shape != values.shape:
+            raise ValueError(
+                "current_elimination must match values shape"
+            )
+
+        return mask
+
+    if active_prime is None:
+        return np.zeros(
+            values.shape,
+            dtype=bool,
+        )
+
+    return eliminated_by == active_prime
+
+
 def _state_name(
     index: int,
     survives: np.ndarray,
     eliminated_by: np.ndarray,
     confirmed: np.ndarray,
     active_prime: int | None,
+    current_mask: np.ndarray,
 ) -> str:
     """Describe the mathematical state of one value."""
 
@@ -28,10 +59,10 @@ def _state_name(
     if survives[index]:
         return "Surviving candidate"
 
-    if (
-        active_prime is not None
-        and eliminated_by[index] == active_prime
-    ):
+    if current_mask[index]:
+        if active_prime is None:
+            return "Currently eliminated"
+
         return f"Removed by prime {active_prime}"
 
     if eliminated_by[index] > 0:
@@ -50,11 +81,19 @@ def build_residue_figure(
     confirmed: np.ndarray,
     active_prime: int | None,
     modulus: int = MODULUS,
+    current_elimination: np.ndarray | None = None,
 ) -> go.Figure:
     """Arrange candidate states by residue class modulo a wheel modulus."""
 
     if modulus < 2:
         raise ValueError("modulus must be at least 2")
+
+    current_mask = _current_elimination_mask(
+        values,
+        eliminated_by,
+        active_prime,
+        current_elimination,
+    )
 
     quotients = values // modulus
     residues = values % modulus
@@ -93,10 +132,7 @@ def build_residue_figure(
         elif survives[index]:
             state_code = 1
 
-        elif (
-            active_prime is not None
-            and eliminated_by[index] == active_prime
-        ):
+        elif current_mask[index]:
             state_code = 2
 
         else:
@@ -110,6 +146,7 @@ def build_residue_figure(
             eliminated_by,
             confirmed,
             active_prime,
+            current_mask,
         )
 
         hover_text[residue, column] = (
