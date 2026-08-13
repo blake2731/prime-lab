@@ -7,6 +7,7 @@ from prime_lab.certification import (
 )
 from prime_lab.filters import filter_candidates
 from ui.candidate_grid import build_candidate_figure
+from ui.residue_structure import build_residue_figure
 from ui.sieve_animation import build_sieve_animation
 
 FILTER_PRIMES = (
@@ -173,30 +174,69 @@ metric_5.metric(
 with st.container(border=True):
     st.subheader("Candidate landscape")
 
-    if applied_primes:
-        figure = build_sieve_animation(
-            range_start,
-            range_end,
-            applied_primes,
+    playback_tab, residue_tab = st.tabs(
+        [
+            "Sieve playback",
+            "Residue structure",
+        ]
+    )
+
+    with playback_tab:
+        if applied_primes:
+            figure = build_sieve_animation(
+                range_start,
+                range_end,
+                applied_primes,
+            )
+
+        else:
+            figure = build_candidate_figure(
+                values,
+                survives,
+                eliminated_by,
+                active_prime,
+                confirmed,
+            )
+
+        st.plotly_chart(
+            figure,
+            width="stretch",
+            config={
+                "displaylogo": False,
+            },
+            key="candidate_landscape",
         )
 
-    else:
-        figure = build_candidate_figure(
+    with residue_tab:
+        residue_figure = build_residue_figure(
             values,
             survives,
             eliminated_by,
-            active_prime,
             confirmed,
+            active_prime,
         )
 
-    st.plotly_chart(
-        figure,
-        width="stretch",
-        config={
-            "displaylogo": False,
-        },
-        key="candidate_landscape",
-    )
+        st.plotly_chart(
+            residue_figure,
+            width="stretch",
+            config={
+                "displaylogo": False,
+            },
+            key="residue_structure",
+        )
+
+        if active_prime is None or active_prime < 5:
+            st.caption(
+                "Apply filters through prime 5 to expose the full modulo 30 "
+                "candidate corridors created by eliminating multiples of 2, 3, and 5."
+            )
+
+        else:
+            st.caption(
+                "For primes greater than 5, only residues "
+                "1, 7, 11, 13, 17, 19, 23, and 29 modulo 30 can contain primes. "
+                "Later filters punch periodic gaps through those surviving corridors."
+            )
 
 with st.container(border=True):
     st.subheader("Current filter")
