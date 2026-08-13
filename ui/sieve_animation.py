@@ -32,12 +32,86 @@ def _status_annotation(text: str) -> list[dict]:
     ]
 
 
+def _animation_frame(
+    name: str,
+    figure: go.Figure,
+    status: str,
+) -> go.Frame:
+    """Create one visual state for browser playback."""
+
+    return go.Frame(
+        name=name,
+        data=[
+            figure.data[0],
+        ],
+        traces=[0],
+        layout=go.Layout(
+            annotations=_status_annotation(status)
+        ),
+    )
+
+
+def _slider_step(
+    label: str,
+    frame_name: str,
+) -> dict:
+    """Create one direct inspection step on the prime timeline."""
+
+    return {
+        "label": label,
+        "method": "animate",
+        "args": [
+            [frame_name],
+            {
+                "frame": {
+                    "duration": 0,
+                    "redraw": True,
+                },
+                "transition": {
+                    "duration": 0,
+                },
+                "mode": "immediate",
+            },
+        ],
+    }
+
+
+def _phase_count(event_count: int) -> int:
+    """Choose a bounded number of visual drops for one filter."""
+
+    if event_count <= 1:
+        return 1
+
+    if event_count <= 12:
+        return min(4, event_count)
+
+    if event_count <= 60:
+        return 5
+
+    if event_count <= 250:
+        return 6
+
+    return 7
+
+
+def _interleaved_batches(
+    indices: np.ndarray,
+    phase_count: int,
+) -> list[np.ndarray]:
+    """Distribute ordered events across deterministic scattered batches."""
+
+    return [
+        indices[offset::phase_count]
+        for offset in range(phase_count)
+    ]
+
+
 def build_sieve_animation(
     start: int,
     end: int,
     filter_primes: Sequence[int],
 ) -> go.Figure:
-    """Build one browser controlled animation of the sieve sequence."""
+    """Build deterministic rainfall playback for the sieve sequence."""
 
     primes = tuple(filter_primes)
 
@@ -61,27 +135,22 @@ def build_sieve_animation(
         primes,
     )
 
-    final_prime = primes[-1]
-
-    final_remaining = int(np.count_nonzero(final_survives))
-
-    final_removed = int(np.count_nonzero(final_eliminated_by == final_prime))
-
     final_confirmed = confirmed_prime_mask(
         final_values,
         final_survives,
         primes,
     )
 
+    final_prime = primes[-1]
+    final_remaining = int(np.count_nonzero(final_survives))
     final_confirmed_count = int(np.count_nonzero(final_confirmed))
-
     final_frontier = certification_frontier(primes)
 
     figure = build_candidate_figure(
         final_values,
         final_survives,
         final_eliminated_by,
-        final_prime,
+        None,
         final_confirmed,
     )
 
@@ -94,8 +163,7 @@ def build_sieve_animation(
             "b": 125,
         },
         annotations=_status_annotation(
-            f"Filter {final_prime}  |  "
-            f"removed {final_removed:,}  |  "
+            f"Filter {final_prime} complete  |  "
             f"remaining {final_remaining:,}  |  "
             f"confirmed {final_confirmed_count:,}  |  "
             f"proof frontier n < {final_frontier:,}"
@@ -103,59 +171,52 @@ def build_sieve_animation(
     )
 
     frames = []
-    frame_names = []
+    playback_names = []
     slider_steps = []
 
-    start_values, start_survives, start_eliminated_by = filter_candidates(
+    (
+        previous_values,
+        previous_survives,
+        previous_eliminated_by,
+    ) = filter_candidates(
         start,
         end,
         (),
     )
 
-    start_candidates = int(np.count_nonzero(start_survives))
-
-    start_figure = build_candidate_figure(
-        start_values,
-        start_survives,
-        start_eliminated_by,
-        None,
+    previous_confirmed = np.zeros(
+        previous_values.shape,
+        dtype=bool,
     )
 
-    frames.append(
-        go.Frame(
-            name="start",
-            data=[
-                start_figure.data[0],
-            ],
-            traces=[0],
-            layout=go.Layout(
-                annotations=_status_annotation(
-                    f"Start  |  " f"{start_candidates:,} candidates"
-                )
-            ),
+    start_candidates = int(
+        np.count_nonzero(
+            previous_survives
         )
     )
 
-    frame_names.append("start")
+    start_figure = build_candidate_figure(
+        previous_values,
+        previous_survives,
+        previous_eliminated_by,
+        None,
+        previous_confirmed,
+    )
 
+    frames.append(
+        _animation_frame(
+            "start",
+            start_figure,
+            f"Start  |  {start_candidates:,} candidates",
+        )
+    )
+
+    playback_names.append("start")
     slider_steps.append(
-        {
-            "label": "Start",
-            "method": "animate",
-            "args": [
-                ["start"],
-                {
-                    "frame": {
-                        "duration": 0,
-                        "redraw": True,
-                    },
-                    "transition": {
-                        "duration": 0,
-                    },
-                    "mode": "immediate",
-                },
-            ],
-        }
+        _slider_step(
+            "Start",
+            "start",
+        )
     )
 
     for step, prime in enumerate(primes):
@@ -171,70 +232,179 @@ def build_sieve_animation(
             stage_primes,
         )
 
-        removed_now = int(np.count_nonzero(stage_eliminated_by == prime))
-
-        remaining_now = int(np.count_nonzero(stage_survives))
-
-        confirmed_now = confirmed_prime_mask(
+        stage_confirmed = confirmed_prime_mask(
             stage_values,
             stage_survives,
             stage_primes,
         )
 
-        confirmed_count = int(np.count_nonzero(confirmed_now))
+        frontier = certification_frontier(
+            stage_primes
+        )
 
-        frontier = certification_frontier(stage_primes)
+        new_eliminated = np.flatnonzero(
+            previous_survives
+            & ~stage_survives
+        )
 
-        stage_figure = build_candidate_figure(
+        new_confirmed = np.flatnonzero(
+            stage_confirmed
+            & ~previous_confirmed
+        )
+
+        total_events = max(
+            len(new_eliminated),
+            len(new_confirmed),
+        )
+
+        phase_count = _phase_count(
+            total_events
+        )
+
+        elimination_batches = _interleaved_batches(
+            new_eliminated,
+            phase_count,
+        )
+
+        confirmation_batches = _interleaved_batches(
+            new_confirmed,
+            phase_count,
+        )
+
+        resolved_eliminated = np.zeros(
+            stage_values.shape,
+            dtype=bool,
+        )
+
+        resolved_confirmed = previous_confirmed.copy()
+
+        for phase_index in range(phase_count):
+            current_elimination = np.zeros(
+                stage_values.shape,
+                dtype=bool,
+            )
+
+            elimination_batch = elimination_batches[
+                phase_index
+            ]
+
+            confirmation_batch = confirmation_batches[
+                phase_index
+            ]
+
+            current_elimination[
+                elimination_batch
+            ] = True
+
+            resolved_eliminated[
+                elimination_batch
+            ] = True
+
+            resolved_confirmed[
+                confirmation_batch
+            ] = True
+
+            phase_survives = previous_survives.copy()
+            phase_survives[
+                resolved_eliminated
+            ] = False
+
+            phase_eliminated_by = previous_eliminated_by.copy()
+            phase_eliminated_by[
+                resolved_eliminated
+            ] = prime
+
+            phase_figure = build_candidate_figure(
+                stage_values,
+                phase_survives,
+                phase_eliminated_by,
+                prime,
+                resolved_confirmed,
+                current_elimination,
+            )
+
+            resolved_composite_count = int(
+                np.count_nonzero(
+                    resolved_eliminated
+                )
+            )
+
+            new_prime_count = int(
+                np.count_nonzero(
+                    resolved_confirmed
+                    & ~previous_confirmed
+                )
+            )
+
+            frame_name = (
+                f"prime_{prime}_drop_"
+                f"{phase_index + 1}"
+            )
+
+            frames.append(
+                _animation_frame(
+                    frame_name,
+                    phase_figure,
+                    f"Filter {prime} resolving  |  "
+                    f"{resolved_composite_count:,}/{len(new_eliminated):,} composites  |  "
+                    f"{new_prime_count:,}/{len(new_confirmed):,} new primes  |  "
+                    f"frontier n < {frontier:,}",
+                )
+            )
+
+            playback_names.append(
+                frame_name
+            )
+
+        settled_figure = build_candidate_figure(
             stage_values,
             stage_survives,
             stage_eliminated_by,
-            prime,
-            confirmed_now,
+            None,
+            stage_confirmed,
         )
 
-        frame_name = f"prime_{prime}"
-
-        frames.append(
-            go.Frame(
-                name=frame_name,
-                data=[
-                    stage_figure.data[0],
-                ],
-                traces=[0],
-                layout=go.Layout(
-                    annotations=_status_annotation(
-                        f"Filter {prime}  |  "
-                        f"removed {removed_now:,}  |  "
-                        f"remaining {remaining_now:,}  |  "
-                        f"confirmed {confirmed_count:,}  |  "
-                        f"proof frontier n < {frontier:,}"
-                    )
-                ),
+        remaining_now = int(
+            np.count_nonzero(
+                stage_survives
             )
         )
 
-        frame_names.append(frame_name)
+        confirmed_now = int(
+            np.count_nonzero(
+                stage_confirmed
+            )
+        )
+
+        settle_name = f"prime_{prime}_settle"
+
+        frames.append(
+            _animation_frame(
+                settle_name,
+                settled_figure,
+                f"Filter {prime} complete  |  "
+                f"removed {len(new_eliminated):,}  |  "
+                f"remaining {remaining_now:,}  |  "
+                f"confirmed {confirmed_now:,}  |  "
+                f"frontier n < {frontier:,}",
+            )
+        )
+
+        playback_names.append(
+            settle_name
+        )
 
         slider_steps.append(
-            {
-                "label": str(prime),
-                "method": "animate",
-                "args": [
-                    [frame_name],
-                    {
-                        "frame": {
-                            "duration": 0,
-                            "redraw": True,
-                        },
-                        "transition": {
-                            "duration": 0,
-                        },
-                        "mode": "immediate",
-                    },
-                ],
-            }
+            _slider_step(
+                str(prime),
+                settle_name,
+            )
         )
+
+        previous_values = stage_values
+        previous_survives = stage_survives
+        previous_eliminated_by = stage_eliminated_by
+        previous_confirmed = stage_confirmed
 
     figure.frames = frames
 
@@ -257,10 +427,10 @@ def build_sieve_animation(
                         "label": "▶ Replay",
                         "method": "animate",
                         "args": [
-                            frame_names,
+                            playback_names,
                             {
                                 "frame": {
-                                    "duration": 600,
+                                    "duration": 130,
                                     "redraw": True,
                                 },
                                 "transition": {
