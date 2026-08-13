@@ -1,152 +1,339 @@
+from dataclasses import dataclass
 from io import BytesIO
-from math import pi
+from math import cos, pi, sin
 import wave
 
 import numpy as np
 
 
 DEFAULT_MODULUS = 30
-DEFAULT_BASE_FREQUENCY = 220.0
 DEFAULT_SAMPLE_RATE = 22050
+DEFAULT_BPM = 360
+MAX_AUDIO_SECONDS = 45.0
+
+PRIME_ELIGIBLE_RESIDUES = (
+    1,
+    7,
+    11,
+    13,
+    17,
+    19,
+    23,
+    29,
+)
+
+PENTATONIC_NOTE_NAMES = (
+    "C4",
+    "D4",
+    "E4",
+    "G4",
+    "A4",
+    "C5",
+    "D5",
+    "E5",
+)
+
+PENTATONIC_MIDI = (
+    60,
+    62,
+    64,
+    67,
+    69,
+    72,
+    74,
+    76,
+)
+
+SPECIAL_PRIME_NOTES = {
+    2: (48, "C3"),
+    3: (55, "G3"),
+    5: (60, "C4"),
+}
 
 
-def residue_frequency(
-    residue: int,
-    modulus: int = DEFAULT_MODULUS,
-    base_frequency: float = DEFAULT_BASE_FREQUENCY,
-) -> float:
-    """Map one residue position continuously across a single octave."""
+@dataclass(frozen=True)
+class PrimeSoundEvent:
+    """One mathematically defined prime event in the audio sequence."""
 
-    if modulus < 2:
-        raise ValueError("modulus must be at least 2")
+    value: int
+    gap: int | None
+    residue: int
+    note_name: str
+    frequency: float
+    pan: float
 
-    if residue < 0 or residue >= modulus:
-        raise ValueError(
-            "residue must satisfy 0 <= residue < modulus"
-        )
 
-    if base_frequency <= 0:
-        raise ValueError(
-            "base_frequency must be positive"
-        )
+def midi_frequency(midi_note: int) -> float:
+    """Convert a MIDI note number to equal tempered frequency."""
 
-    return base_frequency * (
-        2.0 ** (residue / modulus)
+    return 440.0 * (
+        2.0 ** ((midi_note - 69) / 12.0)
     )
 
 
-def residue_events(
+def prime_note(
+    value: int,
+    modulus: int = DEFAULT_MODULUS,
+) -> tuple[int, str, float, float]:
+    """Map prime identity to a stable musical pitch and stereo position."""
+
+    if modulus != DEFAULT_MODULUS:
+        raise ValueError(
+            "musical prime mapping currently supports modulus 30"
+        )
+
+    if value in SPECIAL_PRIME_NOTES:
+        midi_note, note_name = SPECIAL_PRIME_NOTES[value]
+
+        return (
+            value % modulus,
+            note_name,
+            midi_frequency(midi_note),
+            0.0,
+        )
+
+    residue = value % modulus
+
+    if residue not in PRIME_ELIGIBLE_RESIDUES:
+        raise ValueError(
+            "value is not in a prime eligible residue class modulo 30"
+        )
+
+    lane_index = PRIME_ELIGIBLE_RESIDUES.index(
+        residue
+    )
+
+    midi_note = PENTATONIC_MIDI[
+        lane_index
+    ]
+
+    note_name = PENTATONIC_NOTE_NAMES[
+        lane_index
+    ]
+
+    if len(PRIME_ELIGIBLE_RESIDUES) == 1:
+        pan = 0.0
+
+    else:
+        pan = -0.72 + (
+            1.44
+            * lane_index
+            / (len(PRIME_ELIGIBLE_RESIDUES) - 1)
+        )
+
+    return (
+        residue,
+        note_name,
+        midi_frequency(midi_note),
+        pan,
+    )
+
+
+def prime_gap_events(
     values: np.ndarray,
     confirmed: np.ndarray,
     modulus: int = DEFAULT_MODULUS,
-    base_frequency: float = DEFAULT_BASE_FREQUENCY,
-) -> list[list[tuple[int, int, float]]]:
-    """Group confirmed primes by quotient so quotient becomes musical time."""
-
-    if modulus < 2:
-        raise ValueError("modulus must be at least 2")
+) -> list[PrimeSoundEvent]:
+    """Return confirmed primes with exact consecutive prime gaps."""
 
     if values.shape != confirmed.shape:
         raise ValueError(
             "values and confirmed must have the same shape"
         )
 
-    if len(values) == 0:
-        return []
-
-    confirmed_indices = np.flatnonzero(
-        confirmed
-    )
-
-    if len(confirmed_indices) == 0:
-        return []
-
-    quotients = values // modulus
-
-    start_quotient = int(
-        np.min(quotients)
-    )
-
-    last_confirmed_quotient = int(
-        np.max(
-            quotients[confirmed_indices]
-        )
-    )
-
-    events: list[
-        list[tuple[int, int, float]]
-    ] = [
-        []
-        for _ in range(
-            last_confirmed_quotient
-            - start_quotient
-            + 1
-        )
+    confirmed_values = [
+        int(value)
+        for value in values[
+            np.asarray(
+                confirmed,
+                dtype=bool,
+            )
+        ]
     ]
 
-    for index in confirmed_indices:
-        value = int(values[index])
-        quotient = int(quotients[index])
-        residue = value % modulus
+    events: list[PrimeSoundEvent] = []
+    previous_value: int | None = None
 
-        events[
-            quotient - start_quotient
-        ].append(
-            (
-                value,
-                residue,
-                residue_frequency(
-                    residue,
-                    modulus,
-                    base_frequency,
-                ),
+    for value in confirmed_values:
+        residue, note_name, frequency, pan = prime_note(
+            value,
+            modulus,
+        )
+
+        gap = (
+            None
+            if previous_value is None
+            else value - previous_value
+        )
+
+        events.append(
+            PrimeSoundEvent(
+                value=value,
+                gap=gap,
+                residue=residue,
+                note_name=note_name,
+                frequency=frequency,
+                pan=pan,
             )
         )
+
+        previous_value = value
 
     return events
 
 
 def _note_envelope(
     sample_count: int,
+    sample_rate: int,
 ) -> np.ndarray:
-    """Create a short attack and release so notes enter and leave softly."""
+    """Create a gentle mallet style attack and decay envelope."""
 
-    envelope = np.ones(
+    time = np.arange(
         sample_count,
         dtype=np.float64,
+    ) / sample_rate
+
+    attack_seconds = 0.008
+
+    attack = np.minimum(
+        time / attack_seconds,
+        1.0,
     )
 
-    fade_count = min(
-        max(
-            int(sample_count * 0.12),
-            1,
+    decay = np.exp(
+        -4.6
+        * time
+        / max(
+            time[-1]
+            if sample_count > 1
+            else attack_seconds,
+            attack_seconds,
+        )
+    )
+
+    return attack * decay
+
+
+def _synthesize_note(
+    frequency: float,
+    duration_seconds: float,
+    sample_rate: int,
+) -> np.ndarray:
+    """Synthesize a soft harmonic tone suitable for overlapping melodies."""
+
+    sample_count = max(
+        1,
+        int(
+            round(
+                duration_seconds
+                * sample_rate
+            )
         ),
-        sample_count // 2,
     )
 
-    if fade_count > 0:
-        fade = np.linspace(
-            0.0,
-            1.0,
-            fade_count,
-            endpoint=False,
+    time = np.arange(
+        sample_count,
+        dtype=np.float64,
+    ) / sample_rate
+
+    tone = (
+        np.sin(
+            2.0 * pi * frequency * time
+        )
+        + 0.24
+        * np.sin(
+            2.0
+            * pi
+            * frequency
+            * 2.0
+            * time
+        )
+        + 0.08
+        * np.sin(
+            2.0
+            * pi
+            * frequency
+            * 3.0
+            * time
+        )
+    )
+
+    tone *= _note_envelope(
+        sample_count,
+        sample_rate,
+    )
+
+    return tone
+
+
+def _equal_power_pan(
+    pan: float,
+) -> tuple[float, float]:
+    """Convert a minus one to one pan position into stereo gains."""
+
+    bounded_pan = min(
+        1.0,
+        max(
+            -1.0,
+            pan,
+        ),
+    )
+
+    angle = (
+        bounded_pan + 1.0
+    ) * pi / 4.0
+
+    return (
+        cos(angle),
+        sin(angle),
+    )
+
+
+def _apply_echo(
+    audio: np.ndarray,
+    sample_rate: int,
+) -> np.ndarray:
+    """Add a small deterministic room effect without changing event timing."""
+
+    result = audio.copy()
+
+    for delay_seconds, gain in (
+        (0.055, 0.12),
+        (0.110, 0.055),
+    ):
+        delay_samples = int(
+            round(
+                delay_seconds
+                * sample_rate
+            )
         )
 
-        envelope[:fade_count] = fade
-        envelope[-fade_count:] = fade[::-1]
+        if delay_samples <= 0:
+            continue
 
-    return envelope
+        result[
+            delay_samples:,
+            :
+        ] += (
+            audio[
+                :-delay_samples,
+                :
+            ]
+            * gain
+        )
+
+    return result
 
 
-def render_residue_wav(
+def render_prime_gap_wav(
     values: np.ndarray,
     confirmed: np.ndarray,
     modulus: int = DEFAULT_MODULUS,
-    bpm: int = 240,
-    base_frequency: float = DEFAULT_BASE_FREQUENCY,
+    bpm: int = DEFAULT_BPM,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
+    max_audio_seconds: float = MAX_AUDIO_SECONDS,
 ) -> bytes:
-    """Render confirmed primes as a deterministic modulo residue sequencer."""
+    """Render pentatonic residue pitch with exact prime gaps as rhythm."""
 
     if bpm <= 0:
         raise ValueError("bpm must be positive")
@@ -156,97 +343,122 @@ def render_residue_wav(
             "sample_rate must be at least 8000"
         )
 
-    events = residue_events(
+    if max_audio_seconds <= 1.0:
+        raise ValueError(
+            "max_audio_seconds must be greater than 1"
+        )
+
+    events = prime_gap_events(
         values,
         confirmed,
         modulus,
-        base_frequency,
     )
 
     if not events:
         return b""
 
-    seconds_per_step = 60.0 / bpm
+    first_value = events[0].value
+    last_value = events[-1].value
 
-    samples_per_step = max(
+    nominal_seconds_per_integer = (
+        60.0 / bpm / 4.0
+    )
+
+    integer_span = max(
+        1,
+        last_value - first_value,
+    )
+
+    note_duration = min(
+        0.34,
+        max(
+            0.11,
+            nominal_seconds_per_integer * 3.0,
+        ),
+    )
+
+    maximum_timeline = max(
+        0.25,
+        max_audio_seconds
+        - note_duration
+        - 0.15,
+    )
+
+    seconds_per_integer = min(
+        nominal_seconds_per_integer,
+        maximum_timeline / integer_span,
+    )
+
+    total_seconds = (
+        integer_span
+        * seconds_per_integer
+        + note_duration
+        + 0.15
+    )
+
+    total_samples = max(
         1,
         int(
-            round(
-                seconds_per_step
+            np.ceil(
+                total_seconds
                 * sample_rate
             )
         ),
     )
 
-    note_sample_count = max(
-        1,
-        int(
-            samples_per_step * 0.82
-        ),
-    )
-
     audio = np.zeros(
-        len(events) * samples_per_step,
+        (
+            total_samples,
+            2,
+        ),
         dtype=np.float64,
     )
 
-    time = np.arange(
-        note_sample_count,
-        dtype=np.float64,
-    ) / sample_rate
+    for event in events:
+        onset_seconds = (
+            event.value - first_value
+        ) * seconds_per_integer
 
-    envelope = _note_envelope(
-        note_sample_count
-    )
-
-    for step, step_events in enumerate(events):
-        if not step_events:
-            continue
-
-        chord = np.zeros(
-            note_sample_count,
-            dtype=np.float64,
+        start_sample = int(
+            round(
+                onset_seconds
+                * sample_rate
+            )
         )
 
-        amplitude = 0.62 / np.sqrt(
-            len(step_events)
+        note = _synthesize_note(
+            event.frequency,
+            note_duration,
+            sample_rate,
         )
 
-        for _, _, frequency in step_events:
-            fundamental = np.sin(
-                2.0
-                * pi
-                * frequency
-                * time
-            )
-
-            second_harmonic = 0.16 * np.sin(
-                2.0
-                * pi
-                * frequency
-                * 2.0
-                * time
-            )
-
-            chord += amplitude * (
-                fundamental
-                + second_harmonic
-            )
-
-        chord *= envelope
-
-        start_sample = (
-            step * samples_per_step
+        end_sample = min(
+            total_samples,
+            start_sample + len(note),
         )
 
-        end_sample = (
-            start_sample
-            + note_sample_count
+        note = note[
+            : end_sample - start_sample
+        ]
+
+        left_gain, right_gain = _equal_power_pan(
+            event.pan
         )
 
         audio[
-            start_sample:end_sample
-        ] += chord
+            start_sample:end_sample,
+            0,
+        ] += note * left_gain
+
+        audio[
+            start_sample:end_sample,
+            1,
+        ] += note * right_gain
+
+    audio = _apply_echo(
+        audio,
+        sample_rate,
+    )
 
     peak = float(
         np.max(
@@ -255,7 +467,7 @@ def render_residue_wav(
     )
 
     if peak > 0:
-        audio *= 0.92 / peak
+        audio *= 0.9 / peak
 
     pcm = np.asarray(
         np.round(
@@ -270,7 +482,7 @@ def render_residue_wav(
         buffer,
         "wb",
     ) as wav_file:
-        wav_file.setnchannels(1)
+        wav_file.setnchannels(2)
         wav_file.setsampwidth(2)
         wav_file.setframerate(
             sample_rate
