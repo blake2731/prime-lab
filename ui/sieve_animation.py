@@ -32,12 +32,56 @@ def _status_annotation(text: str) -> list[dict]:
     ]
 
 
+def _animation_frame(
+    name: str,
+    figure: go.Figure,
+    status: str,
+) -> go.Frame:
+    """Create one visual phase of the sieve playback."""
+
+    return go.Frame(
+        name=name,
+        data=[
+            figure.data[0],
+        ],
+        traces=[0],
+        layout=go.Layout(
+            annotations=_status_annotation(status)
+        ),
+    )
+
+
+def _slider_step(
+    label: str,
+    frame_name: str,
+) -> dict:
+    """Create one direct inspection step on the filter timeline."""
+
+    return {
+        "label": label,
+        "method": "animate",
+        "args": [
+            [frame_name],
+            {
+                "frame": {
+                    "duration": 0,
+                    "redraw": True,
+                },
+                "transition": {
+                    "duration": 0,
+                },
+                "mode": "immediate",
+            },
+        ],
+    }
+
+
 def build_sieve_animation(
     start: int,
     end: int,
     filter_primes: Sequence[int],
 ) -> go.Figure:
-    """Build one browser controlled animation of the sieve sequence."""
+    """Build a two phase browser controlled sieve animation."""
 
     primes = tuple(filter_primes)
 
@@ -103,7 +147,7 @@ def build_sieve_animation(
     )
 
     frames = []
-    frame_names = []
+    playback_names = []
     slider_steps = []
 
     start_values, start_survives, start_eliminated_by = filter_candidates(
@@ -122,40 +166,20 @@ def build_sieve_animation(
     )
 
     frames.append(
-        go.Frame(
-            name="start",
-            data=[
-                start_figure.data[0],
-            ],
-            traces=[0],
-            layout=go.Layout(
-                annotations=_status_annotation(
-                    f"Start  |  " f"{start_candidates:,} candidates"
-                )
-            ),
+        _animation_frame(
+            "start",
+            start_figure,
+            f"Start  |  {start_candidates:,} candidates  |  no filters applied",
         )
     )
 
-    frame_names.append("start")
+    playback_names.append("start")
 
     slider_steps.append(
-        {
-            "label": "Start",
-            "method": "animate",
-            "args": [
-                ["start"],
-                {
-                    "frame": {
-                        "duration": 0,
-                        "redraw": True,
-                    },
-                    "transition": {
-                        "duration": 0,
-                    },
-                    "mode": "immediate",
-                },
-            ],
-        }
+        _slider_step(
+            "Start",
+            "start",
+        )
     )
 
     for step, prime in enumerate(primes):
@@ -171,9 +195,17 @@ def build_sieve_animation(
             stage_primes,
         )
 
-        removed_now = int(np.count_nonzero(stage_eliminated_by == prime))
+        removed_now = int(
+            np.count_nonzero(
+                stage_eliminated_by == prime
+            )
+        )
 
-        remaining_now = int(np.count_nonzero(stage_survives))
+        remaining_now = int(
+            np.count_nonzero(
+                stage_survives
+            )
+        )
 
         confirmed_now = confirmed_prime_mask(
             stage_values,
@@ -181,11 +213,17 @@ def build_sieve_animation(
             stage_primes,
         )
 
-        confirmed_count = int(np.count_nonzero(confirmed_now))
+        confirmed_count = int(
+            np.count_nonzero(
+                confirmed_now
+            )
+        )
 
-        frontier = certification_frontier(stage_primes)
+        frontier = certification_frontier(
+            stage_primes
+        )
 
-        stage_figure = build_candidate_figure(
+        hit_figure = build_candidate_figure(
             stage_values,
             stage_survives,
             stage_eliminated_by,
@@ -193,48 +231,50 @@ def build_sieve_animation(
             confirmed_now,
         )
 
-        frame_name = f"prime_{prime}"
+        hit_name = f"prime_{prime}_hit"
 
         frames.append(
-            go.Frame(
-                name=frame_name,
-                data=[
-                    stage_figure.data[0],
-                ],
-                traces=[0],
-                layout=go.Layout(
-                    annotations=_status_annotation(
-                        f"Filter {prime}  |  "
-                        f"removed {removed_now:,}  |  "
-                        f"remaining {remaining_now:,}  |  "
-                        f"confirmed {confirmed_count:,}  |  "
-                        f"proof frontier n < {frontier:,}"
-                    )
-                ),
+            _animation_frame(
+                hit_name,
+                hit_figure,
+                f"Filter {prime} strikes  |  "
+                f"{removed_now:,} newly eliminated  |  "
+                f"{confirmed_count:,} primes confirmed  |  "
+                f"proof frontier n < {frontier:,}",
             )
         )
 
-        frame_names.append(frame_name)
+        playback_names.append(hit_name)
 
         slider_steps.append(
-            {
-                "label": str(prime),
-                "method": "animate",
-                "args": [
-                    [frame_name],
-                    {
-                        "frame": {
-                            "duration": 0,
-                            "redraw": True,
-                        },
-                        "transition": {
-                            "duration": 0,
-                        },
-                        "mode": "immediate",
-                    },
-                ],
-            }
+            _slider_step(
+                str(prime),
+                hit_name,
+            )
         )
+
+        if prime != primes[-1]:
+            settle_figure = build_candidate_figure(
+                stage_values,
+                stage_survives,
+                stage_eliminated_by,
+                None,
+                confirmed_now,
+            )
+
+            settle_name = f"prime_{prime}_settle"
+
+            frames.append(
+                _animation_frame(
+                    settle_name,
+                    settle_figure,
+                    f"Resolved through {prime}  |  "
+                    f"{remaining_now:,} candidates remain  |  "
+                    f"{confirmed_count:,} confirmed primes",
+                )
+            )
+
+            playback_names.append(settle_name)
 
     figure.frames = frames
 
@@ -257,14 +297,15 @@ def build_sieve_animation(
                         "label": "▶ Replay",
                         "method": "animate",
                         "args": [
-                            frame_names,
+                            playback_names,
                             {
                                 "frame": {
-                                    "duration": 600,
+                                    "duration": 420,
                                     "redraw": True,
                                 },
                                 "transition": {
-                                    "duration": 0,
+                                    "duration": 140,
+                                    "easing": "cubic-in-out",
                                 },
                                 "fromcurrent": False,
                                 "mode": "immediate",
@@ -303,7 +344,7 @@ def build_sieve_animation(
                     "t": 48,
                 },
                 "currentvalue": {
-                    "prefix": "Filter stage: ",
+                    "prefix": "Inspect filter: ",
                     "visible": True,
                     "xanchor": "right",
                 },
