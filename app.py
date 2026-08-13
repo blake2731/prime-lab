@@ -6,7 +6,11 @@ from prime_lab.certification import (
     confirmed_prime_mask,
 )
 from prime_lab.filters import filter_candidates
-from prime_lab.sonification import render_residue_wav
+from prime_lab.sonification import (
+    PENTATONIC_NOTE_NAMES,
+    PRIME_ELIGIBLE_RESIDUES,
+    render_prime_gap_wav,
+)
 from ui.candidate_grid import build_candidate_figure
 from ui.residue_animation import build_residue_animation
 from ui.residue_structure import build_residue_figure
@@ -344,13 +348,13 @@ with st.container(border=True):
 
     if projection == "Modulo 30":
         with st.expander(
-            "Listen to confirmed primes",
+            "Listen to prime structure",
             expanded=False,
         ):
             st.write(
-                "The modulo 30 grid becomes a deterministic sequencer. "
-                "Horizontal quotient k is time. Residue r is pitch. "
-                "Only mathematically confirmed primes sound."
+                "Pitch encodes modulo 30 residue using a stable C major pentatonic mapping. "
+                "Rhythm comes from the exact gaps between consecutive confirmed primes. "
+                "Music theory shapes the sound, while the prime data determines every note event."
             )
 
             sound_control, sound_detail = st.columns(
@@ -361,26 +365,34 @@ with st.container(border=True):
                 sonification_bpm = st.select_slider(
                     "Tempo",
                     options=[
-                        120,
                         180,
                         240,
                         300,
                         360,
+                        420,
                         480,
+                        600,
                     ],
-                    value=240,
+                    value=360,
                     format_func=lambda value: f"{value} BPM",
                     key="prime_sonification_bpm",
                 )
 
             with sound_detail:
-                st.code(
-                    "frequency = 220 × 2^(r / 30) Hz"
+                mapping_text = "   ".join(
+                    f"{residue}→{note_name}"
+                    for residue, note_name in zip(
+                        PRIME_ELIGIBLE_RESIDUES,
+                        PENTATONIC_NOTE_NAMES,
+                    )
                 )
 
+                st.code(mapping_text)
+
                 st.caption(
-                    "Residue position maps continuously across one octave. "
-                    "Values sharing the same quotient sound together as a chord."
+                    "For primes above 5, residue lane determines pitch. "
+                    "The special primes 2, 3, and 5 use C3, G3, and C4 as opening anchor tones. "
+                    "Stereo position follows residue order from low to high lanes."
                 )
 
             if confirmed_count == 0:
@@ -389,7 +401,7 @@ with st.container(border=True):
                 )
 
             else:
-                sonification_audio = render_residue_wav(
+                sonification_audio = render_prime_gap_wav(
                     values,
                     confirmed,
                     modulus=30,
@@ -404,7 +416,8 @@ with st.container(border=True):
 
                     st.caption(
                         f"Sounding {confirmed_count:,} confirmed primes. "
-                        "Playback stops at the last confirmed prime so unresolved candidates are never presented as primes."
+                        "One integer of numerical distance maps to one sixteenth note unit before any global compression. "
+                        "If a sequence would exceed 45 seconds, the full timeline is compressed uniformly, preserving every prime gap ratio."
                     )
 
 with st.container(border=True):
