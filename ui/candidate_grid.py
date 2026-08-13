@@ -7,6 +7,7 @@ def build_candidate_figure(
     survives: np.ndarray,
     eliminated_by: np.ndarray,
     active_prime: int | None,
+    confirmed: np.ndarray | None = None,
 ) -> go.Figure:
     """Create a precise tiled candidate field."""
 
@@ -43,6 +44,13 @@ def build_candidate_figure(
 
     status[survivor_indices] = 1
 
+    if confirmed is not None:
+        confirmed_indices = np.flatnonzero(
+            confirmed
+        )
+
+        status[confirmed_indices] = 3
+
     if active_prime is not None:
         current_mask = (
             eliminated_by == active_prime
@@ -55,7 +63,13 @@ def build_candidate_figure(
         status[current_indices] = 2
 
     for index, value in enumerate(values):
-        if survives[index]:
+        if (
+            confirmed is not None
+            and confirmed[index]
+        ):
+            state = "Confirmed prime"
+
+        elif survives[index]:
             state = "Surviving candidate"
 
         elif (
@@ -97,14 +111,16 @@ def build_candidate_figure(
             z=status_grid,
             text=hover_grid,
             zmin=0,
-            zmax=2,
+            zmax=3,
             colorscale=[
                 [0.000000, "#E3E8EF"],
-                [0.333333, "#E3E8EF"],
-                [0.333334, "#2457E6"],
-                [0.666666, "#2457E6"],
-                [0.666667, "#D97706"],
-                [1.000000, "#D97706"],
+                [0.166666, "#E3E8EF"],
+                [0.166667, "#2457E6"],
+                [0.499999, "#2457E6"],
+                [0.500000, "#D97706"],
+                [0.833332, "#D97706"],
+                [0.833333, "#008A7C"],
+                [1.000000, "#008A7C"],
             ],
             showscale=False,
             xgap=1,
@@ -121,6 +137,10 @@ def build_candidate_figure(
         (
             "Surviving candidate",
             "#2457E6",
+        ),
+        (
+            "Confirmed prime",
+            "#008A7C",
         ),
         (
             "Previously eliminated",
