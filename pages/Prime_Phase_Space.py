@@ -102,7 +102,7 @@ else:
         + "."
     )
 
-st.plotly_chart(build_prime_clock_figure(states), use_container_width=True)
+st.plotly_chart(build_prime_clock_figure(states), width="stretch")
 
 phase_rows = []
 for state in states:
@@ -118,7 +118,7 @@ for state in states:
     )
 
 with st.expander("Exact phase values", expanded=False):
-    st.dataframe(pd.DataFrame(phase_rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(phase_rows), width="stretch", hide_index=True)
     st.code(
         "Phase signature: ("
         + ", ".join(f"{state.prime}:{state.remainder}" for state in states)
@@ -172,7 +172,7 @@ st.plotly_chart(
         second_prime=second_prime,
         current_integer=current_integer,
     ),
-    use_container_width=True,
+    width="stretch",
 )
 
 st.subheader("3. Watch the phase rhythms around this integer")
@@ -195,7 +195,7 @@ states_by_prime = {
 }
 st.plotly_chart(
     build_phase_trace_figure(trace_integers, states_by_prime),
-    use_container_width=True,
+    width="stretch",
 )
 st.caption(
     "Every trace is a normalized modular sawtooth. A return to phase 0 is an exact multiple of that prime. "
