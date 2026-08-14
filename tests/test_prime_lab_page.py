@@ -21,6 +21,6 @@ def test_baseline_lab_keys_visualization_to_committed_state():
 
 
 def test_baseline_lab_includes_exact_inspection_and_exports():
-    assert '"Inspect one integer"' in APP_SOURCE
+    assert "Inspect one integer" in APP_SOURCE
     assert '"Download state CSV"' in APP_SOURCE
     assert '"Download filter CSV"' in APP_SOURCE
