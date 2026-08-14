@@ -24,6 +24,8 @@ class PrimeGapSummary:
     gap_count: int
     mean_gap: float
     median_gap: float
+    most_common_gap: int
+    most_common_gap_count: int
     largest_gap: int
     largest_gap_lower_prime: int
     largest_gap_upper_prime: int
@@ -116,6 +118,24 @@ def prime_gap_records(
     return tuple(records)
 
 
+def gap_frequency(
+    records: tuple[PrimeGapRecord, ...],
+) -> tuple[tuple[int, int], ...]:
+    """Count how often each observed confirmed prime gap occurs."""
+
+    counts: dict[int, int] = {}
+
+    for record in records:
+        counts[record.gap] = (
+            counts.get(record.gap, 0)
+            + 1
+        )
+
+    return tuple(
+        sorted(counts.items())
+    )
+
+
 def summarize_prime_gaps(
     records: tuple[PrimeGapRecord, ...],
 ) -> PrimeGapSummary | None:
@@ -148,10 +168,21 @@ def summarize_prime_gaps(
         ),
     )
 
+    frequencies = gap_frequency(records)
+    most_common_gap, most_common_gap_count = max(
+        frequencies,
+        key=lambda item: (
+            item[1],
+            -item[0],
+        ),
+    )
+
     return PrimeGapSummary(
         gap_count=len(records),
         mean_gap=float(np.mean(gaps)),
         median_gap=float(np.median(gaps)),
+        most_common_gap=most_common_gap,
+        most_common_gap_count=most_common_gap_count,
         largest_gap=largest_record.gap,
         largest_gap_lower_prime=largest_record.lower_prime,
         largest_gap_upper_prime=largest_record.upper_prime,
@@ -168,22 +199,4 @@ def summarize_prime_gaps(
         largest_normalized_upper_prime=(
             largest_normalized_record.upper_prime
         ),
-    )
-
-
-def gap_frequency(
-    records: tuple[PrimeGapRecord, ...],
-) -> tuple[tuple[int, int], ...]:
-    """Count how often each observed confirmed prime gap occurs."""
-
-    counts: dict[int, int] = {}
-
-    for record in records:
-        counts[record.gap] = (
-            counts.get(record.gap, 0)
-            + 1
-        )
-
-    return tuple(
-        sorted(counts.items())
     )
