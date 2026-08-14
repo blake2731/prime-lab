@@ -39,6 +39,26 @@ class PrimeDensityObservation:
     expected_sqrt_ratio: float
 
 
+@dataclass(frozen=True)
+class DensityConvergencePoint:
+    """One checkpoint in a finite density and sieve convergence sweep."""
+
+    exponent: int
+    maximum_integer: int
+    prime_count: int
+    empirical_prime_density: float
+    pnt_density: float
+    wheel_survivor_fraction: float
+    mertens_estimate: float
+    proof_cutoff_prime: int
+    prime_density_minus_pnt: float
+    wheel_minus_prime_density: float
+    wheel_to_pnt_ratio: float
+    wheel_ratio_error: float
+    mertens_absolute_error: float
+    mertens_relative_error: float
+
+
 def _first_n_primes(count: int) -> tuple[int, ...]:
     if count < 1:
         raise ValueError("count must be positive")
@@ -116,15 +136,17 @@ def survivor_residues(
     return primorial, survivors
 
 
-@lru_cache(maxsize=4)
-def prime_count_up_to(limit: int) -> int:
-    """Return pi(limit) using a bounded memory Eratosthenes sieve."""
+def _prime_sieve(limit: int) -> bytearray:
+    """Return primality flags through ``limit`` using Eratosthenes' sieve."""
 
-    if limit < 2:
-        return 0
+    if limit < 0:
+        raise ValueError("limit must be nonnegative")
 
     sieve = bytearray(b"\x01") * (limit + 1)
-    sieve[0:2] = b"\x00\x00"
+    if limit >= 0:
+        sieve[0] = 0
+    if limit >= 1:
+        sieve[1] = 0
 
     for prime in range(2, isqrt(limit) + 1):
         if not sieve[prime]:
@@ -133,7 +155,38 @@ def prime_count_up_to(limit: int) -> int:
         count = ((limit - start) // prime) + 1
         sieve[start : limit + 1 : prime] = b"\x00" * count
 
-    return sum(sieve)
+    return sieve
+
+
+@lru_cache(maxsize=4)
+def prime_count_up_to(limit: int) -> int:
+    """Return pi(limit) using a bounded memory Eratosthenes sieve."""
+
+    if limit < 2:
+        return 0
+    return int(sum(_prime_sieve(limit)))
+
+
+def _proof_cutoff_statistics(maximum_integer: int) -> tuple[int, int, float, float]:
+    """Return cutoff prime count, cutoff prime, wheel density, and Mertens estimate."""
+
+    proof_limit = isqrt(maximum_integer)
+    proof_primes = primes_up_to(proof_limit)
+    if not proof_primes:
+        raise ValueError("maximum_integer is too small for a prime proof cutoff")
+
+    wheel_survivor_fraction = 1.0
+    for prime in proof_primes:
+        wheel_survivor_fraction *= (prime - 1) / prime
+
+    proof_cutoff_prime = proof_primes[-1]
+    mertens_estimate = exp(-EULER_MASCHERONI) / log(proof_cutoff_prime)
+    return (
+        len(proof_primes),
+        proof_cutoff_prime,
+        wheel_survivor_fraction,
+        mertens_estimate,
+    )
 
 
 def prime_density_observation(maximum_integer: int) -> PrimeDensityObservation:
@@ -148,17 +201,16 @@ def prime_density_observation(maximum_integer: int) -> PrimeDensityObservation:
         raise ValueError("maximum_integer must be at least 10")
 
     proof_limit = isqrt(maximum_integer)
-    proof_primes = primes_up_to(proof_limit)
-    proof_cutoff_prime = proof_primes[-1]
-
-    wheel_survivor_fraction = 1.0
-    for prime in proof_primes:
-        wheel_survivor_fraction *= (prime - 1) / prime
+    (
+        proof_prime_count,
+        proof_cutoff_prime,
+        wheel_survivor_fraction,
+        mertens_estimate,
+    ) = _proof_cutoff_statistics(maximum_integer)
 
     count = prime_count_up_to(maximum_integer)
     empirical_density = count / maximum_integer
     pnt_density = 1.0 / log(maximum_integer)
-    mertens_estimate = exp(-EULER_MASCHERONI) / log(proof_cutoff_prime)
 
     return PrimeDensityObservation(
         maximum_integer=maximum_integer,
@@ -166,10 +218,72 @@ def prime_density_observation(maximum_integer: int) -> PrimeDensityObservation:
         empirical_prime_density=empirical_density,
         pnt_density=pnt_density,
         proof_limit=proof_limit,
-        proof_prime_count=len(proof_primes),
+        proof_prime_count=proof_prime_count,
         proof_cutoff_prime=proof_cutoff_prime,
         wheel_survivor_fraction=wheel_survivor_fraction,
         mertens_at_proof_cutoff=mertens_estimate,
         wheel_to_pnt_ratio=wheel_survivor_fraction / pnt_density,
         expected_sqrt_ratio=2.0 * exp(-EULER_MASCHERONI),
     )
+
+
+def density_convergence_sweep(
+    minimum_exponent: int = 2,
+    maximum_exponent: int = 7,
+) -> tuple[DensityConvergencePoint, ...]:
+    """Measure density residuals at powers of ten using one exact prime sieve.
+
+    V1 deliberately bounds the sweep at 10^7 so the complete prime table can
+    be recomputed interactively without excessive memory use.
+    """
+
+    if minimum_exponent < 2:
+        raise ValueError("minimum_exponent must be at least 2")
+    if maximum_exponent < minimum_exponent:
+        raise ValueError("maximum_exponent must not be smaller than minimum_exponent")
+    if maximum_exponent > 7:
+        raise ValueError("maximum_exponent must not exceed 7 in the interactive V1 sweep")
+
+    checkpoints = tuple(10**exponent for exponent in range(minimum_exponent, maximum_exponent + 1))
+    sieve = _prime_sieve(checkpoints[-1])
+    flags = memoryview(sieve)
+    expected_ratio = 2.0 * exp(-EULER_MASCHERONI)
+    points: list[DensityConvergencePoint] = []
+
+    for exponent, maximum_integer in zip(
+        range(minimum_exponent, maximum_exponent + 1),
+        checkpoints,
+        strict=True,
+    ):
+        prime_count = int(sum(flags[: maximum_integer + 1]))
+        empirical_density = prime_count / maximum_integer
+        pnt_density = 1.0 / log(maximum_integer)
+        (
+            _,
+            proof_cutoff_prime,
+            wheel_survivor_fraction,
+            mertens_estimate,
+        ) = _proof_cutoff_statistics(maximum_integer)
+        wheel_to_pnt_ratio = wheel_survivor_fraction / pnt_density
+        mertens_absolute_error = wheel_survivor_fraction - mertens_estimate
+
+        points.append(
+            DensityConvergencePoint(
+                exponent=exponent,
+                maximum_integer=maximum_integer,
+                prime_count=prime_count,
+                empirical_prime_density=empirical_density,
+                pnt_density=pnt_density,
+                wheel_survivor_fraction=wheel_survivor_fraction,
+                mertens_estimate=mertens_estimate,
+                proof_cutoff_prime=proof_cutoff_prime,
+                prime_density_minus_pnt=empirical_density - pnt_density,
+                wheel_minus_prime_density=wheel_survivor_fraction - empirical_density,
+                wheel_to_pnt_ratio=wheel_to_pnt_ratio,
+                wheel_ratio_error=wheel_to_pnt_ratio - expected_ratio,
+                mertens_absolute_error=mertens_absolute_error,
+                mertens_relative_error=mertens_absolute_error / mertens_estimate,
+            )
+        )
+
+    return tuple(points)
