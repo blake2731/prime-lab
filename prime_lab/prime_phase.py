@@ -51,7 +51,7 @@ def _is_prime(value: int) -> bool:
     return True
 
 
-@lru_cache(maxsize=64)
+@lru_cache(maxsize=8)
 def primes_up_to(limit: int) -> tuple[int, ...]:
     """Return all primes less than or equal to ``limit`` using a sieve."""
 
