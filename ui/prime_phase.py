@@ -22,8 +22,8 @@ def build_prime_clock_figure(states: tuple[PrimePhaseState, ...], *, columns: in
         raise ValueError("at least one phase state is required")
 
     rows = (len(states) + columns - 1) // columns
-    spacing_x = 2.7
-    spacing_y = 2.7
+    spacing_x = 2.9
+    spacing_y = 3.05
 
     figure = go.Figure()
 
@@ -32,6 +32,8 @@ def build_prime_clock_figure(states: tuple[PrimePhaseState, ...], *, columns: in
         column = index % columns
         center_x = column * spacing_x
         center_y = (rows - 1 - row) * spacing_y
+        emphasized = state.is_relevant_divisor
+        cycle_color = NEWLY_RESOLVED if emphasized else CONFIRMED_PRIME
 
         circle_x = []
         circle_y = []
@@ -45,7 +47,7 @@ def build_prime_clock_figure(states: tuple[PrimePhaseState, ...], *, columns: in
                 x=circle_x,
                 y=circle_y,
                 mode="lines",
-                line={"color": CONFIRMED_PRIME, "width": 2},
+                line={"color": cycle_color, "width": 3 if emphasized else 2},
                 hoverinfo="skip",
                 showlegend=False,
             )
@@ -54,52 +56,77 @@ def build_prime_clock_figure(states: tuple[PrimePhaseState, ...], *, columns: in
         angle = state.angle_radians
         hand_x = center_x + 0.78 * sin(angle)
         hand_y = center_y + 0.78 * cos(angle)
-        hand_color = NEWLY_RESOLVED if state.is_relevant_divisor else CONFIRMED_PRIME
 
         figure.add_trace(
             go.Scatter(
                 x=[center_x, hand_x],
                 y=[center_y, hand_y],
                 mode="lines+markers",
-                line={"color": hand_color, "width": 4},
-                marker={"size": [5, 10], "color": hand_color},
+                line={"color": cycle_color, "width": 4},
+                marker={"size": [5, 10], "color": cycle_color},
                 hovertemplate=(
                     f"Prime cycle: {state.prime}<br>"
-                    f"Integer: {state.integer}<br>"
+                    f"Integer: {state.integer:,}<br>"
                     f"Remainder: {state.remainder}<br>"
-                    f"Phase: {state.phase_fraction:.3f} turns<br>"
-                    f"Angle: {state.angle_degrees:.1f}°<extra></extra>"
+                    f"Phase: {state.phase_fraction:.4f} turns<br>"
+                    f"Angle: {state.angle_degrees:.1f}°<br>"
+                    f"Previous zero: {state.previous_zero:,}<br>"
+                    f"Next zero: {state.next_zero:,}<br>"
+                    f"Steps to next zero: {state.steps_to_next_zero}<extra></extra>"
                 ),
                 showlegend=False,
             )
         )
 
-        zero_color = NEWLY_RESOLVED if state.is_zero_crossing and state.prime < state.integer else RESOLVED_COMPOSITE
+        zero_color = NEWLY_RESOLVED if emphasized else RESOLVED_COMPOSITE
         figure.add_trace(
             go.Scatter(
                 x=[center_x],
                 y=[center_y + 1.0],
                 mode="markers",
-                marker={"size": 8, "color": zero_color},
-                hovertemplate="Phase zero / multiple<extra></extra>",
+                marker={"size": 9 if emphasized else 7, "color": zero_color},
+                hovertemplate="Phase zero · exact multiple<extra></extra>",
                 showlegend=False,
             )
         )
 
         figure.add_annotation(
             x=center_x,
-            y=center_y - 1.25,
-            text=f"p = {state.prime} · n mod p = {state.remainder}",
+            y=center_y + 1.22,
+            text="phase 0",
             showarrow=False,
-            font={"size": 12, "color": INK},
+            font={"size": 9, "color": MUTED},
+        )
+
+        if emphasized:
+            status = f"<b>Prime {state.prime}</b><br><span style='color:{NEWLY_RESOLVED}'>PHASE ZERO · divides n</span>"
+        else:
+            proof_note = " · in √n proof" if state.is_relevant_test_prime else ""
+            status = (
+                f"<b>Prime {state.prime}</b><br>"
+                f"r = {state.remainder} · next zero in {state.steps_to_next_zero}{proof_note}"
+            )
+
+        figure.add_annotation(
+            x=center_x,
+            y=center_y - 1.30,
+            text=status,
+            showarrow=False,
+            align="center",
+            font={"size": 11, "color": INK},
         )
 
     width_units = max(1, min(columns, len(states))) * spacing_x
     height_units = rows * spacing_y
-    figure.update_xaxes(visible=False, range=[-1.4, width_units - spacing_x + 1.4], constrain="domain")
-    figure.update_yaxes(visible=False, range=[-1.55, height_units - spacing_y + 1.45], scaleanchor="x", scaleratio=1)
+    figure.update_xaxes(visible=False, range=[-1.45, width_units - spacing_x + 1.45], constrain="domain")
+    figure.update_yaxes(
+        visible=False,
+        range=[-1.65, height_units - spacing_y + 1.55],
+        scaleanchor="x",
+        scaleratio=1,
+    )
     figure.update_layout(
-        height=max(330, 260 * rows),
+        height=max(350, 285 * rows),
         margin={"l": 10, "r": 10, "t": 20, "b": 10},
         plot_bgcolor="white",
         paper_bgcolor="white",
