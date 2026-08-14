@@ -94,18 +94,29 @@ stage_rows = [
     }
     for stage in stages
 ]
+stage_frame = pd.DataFrame(stage_rows)
 
-with st.expander("Exact stage table", expanded=False):
-    st.dataframe(
-        pd.DataFrame(stage_rows),
+stage_table_col, stage_export_col = st.columns([4, 1])
+with stage_table_col:
+    with st.expander("Exact stage table", expanded=False):
+        st.dataframe(
+            stage_frame,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "Survivor fraction": st.column_config.NumberColumn(format="%.8f"),
+                "Eliminated fraction": st.column_config.NumberColumn(format="%.8f"),
+                "Mertens estimate": st.column_config.NumberColumn(format="%.8f"),
+                "Exact / Mertens": st.column_config.NumberColumn(format="%.6f"),
+            },
+        )
+with stage_export_col:
+    st.download_button(
+        "Download stages CSV",
+        data=stage_frame.to_csv(index=False).encode("utf-8"),
+        file_name="primorial_phase_stages.csv",
+        mime="text/csv",
         width="stretch",
-        hide_index=True,
-        column_config={
-            "Survivor fraction": st.column_config.NumberColumn(format="%.8f"),
-            "Eliminated fraction": st.column_config.NumberColumn(format="%.8f"),
-            "Mertens estimate": st.column_config.NumberColumn(format="%.8f"),
-            "Exact / Mertens": st.column_config.NumberColumn(format="%.6f"),
-        },
     )
 
 st.caption(
@@ -211,8 +222,8 @@ st.info(
 
 st.subheader("4. Error and convergence across scale")
 st.write(
-    "Single values can look close by coincidence or by an established asymptotic relationship. A convergence sweep measures the signed discrepancies at the same checkpoints instead. "
-    "The experiment below evaluates powers of ten with one exact Eratosthenes sieve and compares four residual quantities."
+    "Single values can look close by coincidence or by an established asymptotic relationship. A convergence sweep measures signed and normalized discrepancies at fixed checkpoints instead. "
+    "The experiment below evaluates powers of ten with one exact Eratosthenes sieve."
 )
 
 with st.expander("How to interpret the residuals", expanded=True):
@@ -220,11 +231,15 @@ with st.expander("How to interpret the residuals", expanded=True):
         """
 **Prime density minus PNT density** measures `π(x)/x − 1/ln(x)`. A positive value means the observed finite prime density is above the leading PNT density approximation at that x.
 
-**Primorial survivor minus prime density** measures how much periodic phase space survives the √x prime cycles beyond the fraction of integers that are actually prime. A positive value means the primorial filter leaves more candidates than there are primes.
+**Relative PNT error** divides that residual by `1/ln(x)`. This reports the finite prime density error as a fraction of the PNT reference scale rather than in raw density units.
+
+**Primorial survivor minus prime density** compares the periodic primorial survivor density with the observed finite prime density. A positive value means the periodic survivor density is larger at that scale; the quantities remain mathematically distinct.
+
+**Relative survivor excess** divides that difference by the observed prime density. It measures how much larger the periodic survivor density is relative to the finite prime density.
 
 **Survivor/PNT ratio minus 2e^(−γ)** measures convergence toward the classical √x cutoff comparison. Zero would mean the finite ratio equals that asymptotic reference exactly.
 
-**Exact survivor minus Mertens estimate** measures the finite error in using `e^(−γ)/ln(p)` for the primorial survivor product at the proof cutoff prime p. Zero would mean exact agreement at that cutoff.
+**Exact survivor minus Mertens estimate** measures the finite error in using `e^(−γ)/ln(p)` for the primorial survivor product at cutoff prime p.
         """
     )
 
@@ -244,20 +259,20 @@ with st.spinner("Computing exact convergence checkpoints..."):
 latest_convergence = convergence[-1]
 conv_one, conv_two, conv_three, conv_four = st.columns(4)
 conv_one.metric(
-    "π(x)/x − 1/ln(x)",
-    f"{latest_convergence.prime_density_minus_pnt:+.8f}",
+    "Relative PNT error",
+    f"{latest_convergence.prime_density_relative_pnt_error:+.4%}",
 )
 conv_two.metric(
-    "Survivor − π(x)/x",
-    f"{latest_convergence.wheel_minus_prime_density:+.8f}",
+    "Relative survivor excess",
+    f"{latest_convergence.wheel_relative_prime_excess:+.4%}",
 )
 conv_three.metric(
     "Ratio residual",
     f"{latest_convergence.wheel_ratio_error:+.8f}",
 )
 conv_four.metric(
-    "Mertens residual",
-    f"{latest_convergence.mertens_absolute_error:+.8f}",
+    "Relative Mertens error",
+    f"{latest_convergence.mertens_relative_error:+.4%}",
 )
 
 st.plotly_chart(build_density_residual_figure(convergence), width="stretch")
@@ -267,8 +282,7 @@ st.caption(
 
 st.plotly_chart(build_asymptotic_residual_figure(convergence), width="stretch")
 st.caption(
-    "The two residuals in this chart compare different mathematical objects, so their vertical proximity should not be interpreted as equality. "
-    "The useful information is how each residual behaves as x increases."
+    "The two residuals in this chart compare different mathematical objects. Their vertical proximity is not evidence of equality; the relevant question is how each residual changes as x increases."
 )
 
 convergence_rows = [
@@ -279,7 +293,9 @@ convergence_rows = [
         "1 / ln(x)": point.pnt_density,
         "Primorial survivor": point.wheel_survivor_fraction,
         "π(x)/x − PNT": point.prime_density_minus_pnt,
+        "Relative PNT error": point.prime_density_relative_pnt_error,
         "Survivor − π(x)/x": point.wheel_minus_prime_density,
+        "Relative survivor excess": point.wheel_relative_prime_excess,
         "Survivor / PNT": point.wheel_to_pnt_ratio,
         "Ratio − 2e^(−γ)": point.wheel_ratio_error,
         "Exact − Mertens": point.mertens_absolute_error,
@@ -288,23 +304,36 @@ convergence_rows = [
     }
     for point in convergence
 ]
+convergence_frame = pd.DataFrame(convergence_rows)
 
-with st.expander("Exact convergence table", expanded=False):
-    st.dataframe(
-        pd.DataFrame(convergence_rows),
+convergence_table_col, convergence_export_col = st.columns([4, 1])
+with convergence_table_col:
+    with st.expander("Exact convergence table", expanded=False):
+        st.dataframe(
+            convergence_frame,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "π(x) / x": st.column_config.NumberColumn(format="%.9f"),
+                "1 / ln(x)": st.column_config.NumberColumn(format="%.9f"),
+                "Primorial survivor": st.column_config.NumberColumn(format="%.9f"),
+                "π(x)/x − PNT": st.column_config.NumberColumn(format="%+.9f"),
+                "Relative PNT error": st.column_config.NumberColumn(format="%+.6f"),
+                "Survivor − π(x)/x": st.column_config.NumberColumn(format="%+.9f"),
+                "Relative survivor excess": st.column_config.NumberColumn(format="%+.6f"),
+                "Survivor / PNT": st.column_config.NumberColumn(format="%.9f"),
+                "Ratio − 2e^(−γ)": st.column_config.NumberColumn(format="%+.9f"),
+                "Exact − Mertens": st.column_config.NumberColumn(format="%+.9f"),
+                "Relative Mertens error": st.column_config.NumberColumn(format="%+.6f"),
+            },
+        )
+with convergence_export_col:
+    st.download_button(
+        "Download convergence CSV",
+        data=convergence_frame.to_csv(index=False).encode("utf-8"),
+        file_name=f"primorial_convergence_10e2_to_10e{sweep_exponent}.csv",
+        mime="text/csv",
         width="stretch",
-        hide_index=True,
-        column_config={
-            "π(x) / x": st.column_config.NumberColumn(format="%.9f"),
-            "1 / ln(x)": st.column_config.NumberColumn(format="%.9f"),
-            "Primorial survivor": st.column_config.NumberColumn(format="%.9f"),
-            "π(x)/x − PNT": st.column_config.NumberColumn(format="%+.9f"),
-            "Survivor − π(x)/x": st.column_config.NumberColumn(format="%+.9f"),
-            "Survivor / PNT": st.column_config.NumberColumn(format="%.9f"),
-            "Ratio − 2e^(−γ)": st.column_config.NumberColumn(format="%+.9f"),
-            "Exact − Mertens": st.column_config.NumberColumn(format="%+.9f"),
-            "Relative Mertens error": st.column_config.NumberColumn(format="%+.6f"),
-        },
     )
 
 
