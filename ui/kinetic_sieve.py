@@ -106,10 +106,10 @@ def build_kinetic_sieve_html(
 <body>
 <div class="shell">
     <div class="top">
-        <div class="metric"><div class="metric-label">Frontier</div><div id="frontierValue" class="metric-value">2</div></div>
-        <div class="metric"><div class="metric-label">Latest confirmed prime</div><div id="latestPrime" class="metric-value">2</div></div>
-        <div class="metric"><div class="metric-label">Prime trajectories discovered</div><div id="primeCount" class="metric-value">1</div></div>
-        <div class="metric"><div class="metric-label">Latest meeting</div><div id="latestMeeting" class="metric-value">None yet</div></div>
+        <div class="metric"><div class="metric-label">Frontier</div><div id="frontierValue" class="metric-value">1</div></div>
+        <div class="metric"><div class="metric-label">Latest confirmed prime</div><div id="latestPrime" class="metric-value">None yet</div></div>
+        <div class="metric"><div class="metric-label">Confirmed primes discovered</div><div id="primeCount" class="metric-value">0</div></div>
+        <div class="metric"><div class="metric-label">Latest shared meeting</div><div id="latestMeeting" class="metric-value">None yet</div></div>
     </div>
     <div class="stage-wrap"><canvas id="stage"></canvas></div>
     <div class="toolbar">
@@ -147,14 +147,13 @@ def build_kinetic_sieve_html(
 
     let running = true;
     let speedMultiplier = 1;
-    let simPosition = 2;
+    let simPosition = 1.55;
     let processedThrough = 1;
     let latestConfirmedPrime = null;
     let primes = [];
     let resolved = new Map();
     let lastEvent = null;
     let lastTimestamp = performance.now();
-    let meetingCount = 0;
 
     const CELL_SIZE = 44;
     const CELL_GAP = 7;
@@ -163,7 +162,9 @@ def build_kinetic_sieve_html(
     const RIGHT_PAD = 30;
     const ROW_Y_RATIO = 0.72;
     const EVENT_GLOW_SPAN = 0.58;
-    const MAX_TRACKED_PRIME = 113;
+    const CORE_TRACK_LIMIT = 113;
+    const LARGE_PRIME_LOOKAHEAD = 9;
+    const MEETING_HOLD_SPAN = 0.13;
 
     function resize() {{
         const rect = canvas.getBoundingClientRect();
@@ -231,8 +232,6 @@ def build_kinetic_sieve_html(
                 eventAt: value,
             }});
 
-            if (factors.length >= 2) meetingCount += 1;
-
             lastEvent = {{
                 value,
                 kind: factors.length >= 2 ? "meeting" : "composite",
@@ -255,8 +254,7 @@ def build_kinetic_sieve_html(
     function ensureProcessed() {{
         const target = Math.floor(simPosition + 1e-9);
         while (processedThrough < target) {{
-            const next = processedThrough + 1;
-            processInteger(next);
+            processInteger(processedThrough + 1);
         }}
     }}
 
@@ -324,17 +322,36 @@ def build_kinetic_sieve_html(
         }}
     }}
 
-    function drawPrimeToken(prime, index, geometry, rowY) {{
-        if (prime > simPosition + 1e-9) return;
-        if (prime > MAX_TRACKED_PRIME) return;
+    function shouldDrawPrime(prime) {{
+        if (prime > simPosition + 1e-9) return false;
+        if (prime <= CORE_TRACK_LIMIT) return true;
 
+        const justBorn = simPosition - prime <= 0.9;
+        if (justBorn) return true;
+
+        const nextMultiple = Math.ceil((simPosition + 1e-9) / prime) * prime;
+        return nextMultiple - simPosition <= LARGE_PRIME_LOOKAHEAD;
+    }}
+
+    function drawPrimeToken(prime, displayIndex, geometry, rowY) {{
         const phase = ((simPosition % prime) + prime) % prime / prime;
         const arc = Math.sin(Math.PI * phase);
-        const amplitude = 72 + Math.min(210, index * 7.2);
-        const x = worldX(simPosition, geometry);
-        const y = rowY - amplitude * arc;
-        const size = 30;
+        const amplitude = 72 + Math.min(220, displayIndex * 7.6);
+        let x = worldX(simPosition, geometry);
+        let y = rowY - amplitude * arc;
 
+        if (
+            lastEvent
+            && lastEvent.kind === "meeting"
+            && lastEvent.factors.includes(prime)
+            && simPosition - lastEvent.eventAt >= 0
+            && simPosition - lastEvent.eventAt <= MEETING_HOLD_SPAN
+        ) {{
+            x = worldX(lastEvent.value, geometry);
+            y = rowY;
+        }}
+
+        const size = 30;
         const justBorn = Math.max(0, 1 - (simPosition - prime) / 0.65);
         const scale = 1 + 0.22 * justBorn;
         const drawSize = size * scale;
@@ -431,7 +448,7 @@ def build_kinetic_sieve_html(
         ctx.restore();
     }}
 
-    function drawStatusNote(rowY) {{
+    function drawStatusNote() {{
         if (!lastEvent) return;
 
         let text = "";
@@ -477,12 +494,12 @@ def build_kinetic_sieve_html(
             drawCell(value, geometry, rowY);
         }}
 
-        const visiblePrimes = primes.filter((p) => p <= MAX_TRACKED_PRIME);
-        visiblePrimes.forEach((p, index) => drawPrimeToken(p, index, geometry, rowY));
+        const displayPrimes = primes.filter(shouldDrawPrime);
+        displayPrimes.forEach((prime, index) => drawPrimeToken(prime, index, geometry, rowY));
 
         drawMeetingPulse(geometry, rowY);
         drawPrimeDiscovery(geometry, rowY);
-        drawStatusNote(rowY);
+        drawStatusNote();
         pruneResolved(geometry);
     }}
 
@@ -514,8 +531,6 @@ def build_kinetic_sieve_html(
         }});
     }});
 
-    processInteger(2);
-    simPosition = 2;
     lastTimestamp = performance.now();
     requestAnimationFrame(frame);
 }})();
