@@ -192,17 +192,19 @@ def build_residue_animation(
         primes
     )
 
+    final_prime = primes[-1]
+
     figure = build_residue_figure(
         final_values,
         final_survives,
         final_eliminated_by,
         final_confirmed,
-        None,
+        final_prime,
         modulus,
     )
 
     final_title = _settled_title(
-        primes[-1],
+        final_prime,
         final_frontier,
         modulus,
         int(np.count_nonzero(final_survives)),
@@ -319,6 +321,10 @@ def build_residue_animation(
 
         partial_survives = previous_survives.copy()
         partial_eliminated_by = previous_eliminated_by.copy()
+        resolved_eliminated = np.zeros(
+            stage_values.shape,
+            dtype=bool,
+        )
 
         resolved_count = 0
 
@@ -328,14 +334,9 @@ def build_residue_animation(
         ):
             partial_survives[batch] = False
             partial_eliminated_by[batch] = prime
+            resolved_eliminated[batch] = True
 
             resolved_count += len(batch)
-
-            current_mask = np.zeros(
-                stage_values.shape,
-                dtype=bool,
-            )
-            current_mask[batch] = True
 
             drop_figure = build_residue_figure(
                 stage_values,
@@ -344,7 +345,7 @@ def build_residue_animation(
                 previous_confirmed,
                 prime,
                 modulus,
-                current_elimination=current_mask,
+                current_elimination=resolved_eliminated,
             )
 
             frame_name = (
@@ -393,7 +394,7 @@ def build_residue_animation(
                 stage_survives,
                 stage_eliminated_by,
                 partial_confirmed,
-                None,
+                prime,
                 modulus,
             )
 
@@ -423,7 +424,7 @@ def build_residue_animation(
             stage_survives,
             stage_eliminated_by,
             stage_confirmed,
-            None,
+            prime,
             modulus,
         )
 
