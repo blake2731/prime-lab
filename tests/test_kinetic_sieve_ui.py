@@ -40,7 +40,33 @@ def test_kinetic_html_contains_continuous_browser_animation_and_collision_logic(
     assert 'lastEvent.kind === "meeting"' in html
     assert "lastEvent.factors.includes(prime)" in html
     assert "meet at" in html
-    assert "Math.ceil((simPosition + 1e-9) / prime) * prime" in html
+    assert "primeSegment(prime)" in html
+
+
+def test_kinetic_arcs_use_pi_based_half_sine_geometry():
+    html = build_kinetic_sieve_html()
+
+    assert "Math.sin(Math.PI * t)" in html
+    assert "Math.sin(Math.PI * phase)" in html
+    assert "span / Math.PI" in html
+
+
+def test_kinetic_html_keeps_numbers_readable_and_camera_bounded():
+    html = build_kinetic_sieve_html()
+
+    assert "const CELL_SIZE = 56;" in html
+    assert "function numberFont(value)" in html
+    assert "function updateCamera(delta)" in html
+
+
+def test_kinetic_html_has_bounded_exportable_session_log():
+    html = build_kinetic_sieve_html()
+
+    assert "Session event log" in html
+    assert "const LOG_LIMIT = 10000;" in html
+    assert "Download CSV" in html
+    assert "prime-lab-kinetic-events-through" in html
+    assert 'event.kind !== "prime" && event.kind !== "meeting"' in html
 
 
 def test_kinetic_html_uses_requested_runtime_configuration():
