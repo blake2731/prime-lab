@@ -6,6 +6,42 @@ from prime_lab.prime_gaps import (
 )
 
 
+def _rolling_average(
+    records: tuple[PrimeGapRecord, ...],
+    window: int = 25,
+) -> tuple[list[int], list[float]]:
+    """Return a simple rolling mean for observed gap size."""
+
+    if len(records) < window:
+        return [], []
+
+    x_values: list[int] = []
+    averages: list[float] = []
+    running_sum = sum(
+        record.gap
+        for record in records[:window]
+    )
+
+    x_values.append(
+        records[window - 1].lower_prime
+    )
+    averages.append(
+        running_sum / window
+    )
+
+    for index in range(window, len(records)):
+        running_sum += records[index].gap
+        running_sum -= records[index - window].gap
+        x_values.append(
+            records[index].lower_prime
+        )
+        averages.append(
+            running_sum / window
+        )
+
+    return x_values, averages
+
+
 def build_prime_gap_timeline(
     records: tuple[PrimeGapRecord, ...],
 ) -> go.Figure:
@@ -42,14 +78,11 @@ def build_prime_gap_timeline(
         go.Scatter(
             x=lower_primes,
             y=gaps,
-            mode="lines+markers",
-            line={
-                "color": "#2457E6",
-                "width": 1.5,
-            },
+            mode="markers",
             marker={
                 "color": "#2457E6",
-                "size": 5,
+                "size": 6,
+                "opacity": 0.72,
             },
             text=hover_text,
             name="Observed prime gap",
@@ -59,6 +92,29 @@ def build_prime_gap_timeline(
             ),
         )
     )
+
+    rolling_x, rolling_gap = _rolling_average(
+        records
+    )
+
+    if rolling_x:
+        figure.add_trace(
+            go.Scatter(
+                x=rolling_x,
+                y=rolling_gap,
+                mode="lines",
+                line={
+                    "color": "#243247",
+                    "width": 2.5,
+                },
+                name="25 gap rolling average",
+                hovertemplate=(
+                    "Lower prime %{x:,}"
+                    "<br>25 gap average %{y:.2f}"
+                    "<extra></extra>"
+                ),
+            )
+        )
 
     figure.add_trace(
         go.Scatter(
@@ -70,7 +126,7 @@ def build_prime_gap_timeline(
                 "width": 2,
                 "dash": "dash",
             },
-            name="ln(p) local spacing scale",
+            name="ln(p) spacing scale",
             hovertemplate=(
                 "Lower prime %{x:,}"
                 "<br>ln(p) %{y:.2f}"
@@ -98,18 +154,18 @@ def build_prime_gap_timeline(
             mode="markers",
             marker={
                 "color": "#D97706",
-                "size": 9,
+                "size": 10,
                 "symbol": "diamond",
             },
             text=[
                 (
-                    f"<b>New local record</b>"
+                    f"<b>New record within this range</b>"
                     f"<br>{record.lower_prime:,} → {record.upper_prime:,}"
                     f"<br>Gap {record.gap:,}"
                 )
                 for record in record_points
             ],
-            name="New local record gap",
+            name="New record gap",
             hovertemplate=(
                 "%{text}"
                 "<extra></extra>"
@@ -254,14 +310,11 @@ def build_normalized_gap_figure(
         go.Scatter(
             x=lower_primes,
             y=ratios,
-            mode="lines+markers",
-            line={
-                "color": "#008A7C",
-                "width": 1.5,
-            },
+            mode="markers",
             marker={
                 "color": "#008A7C",
-                "size": 5,
+                "size": 6,
+                "opacity": 0.72,
             },
             text=hover_text,
             name="Gap / ln(p)",
