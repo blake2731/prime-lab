@@ -37,6 +37,11 @@ FILTER_PRIMES = (
     67,
 )
 
+SQUARE_VIEW = "Square grid"
+CUSTOM_WIDTH_VIEW = "Custom width grid"
+ACTIVE_PRIME_VIEW = "Active prime alignment"
+MODULO_30_VIEW = "Modulo 30 residue lanes"
+
 
 st.set_page_config(
     page_title="Prime Lab",
@@ -46,12 +51,41 @@ st.set_page_config(
 
 
 st.title("Prime Lab")
+st.caption(
+    "Explore how prime candidates are eliminated, confirmed, and reorganized under different mathematical views."
+)
 
-st.caption("Computational Number Theory Laboratory  •  Candidate Filter Visualizer")
+st.info(
+    "Start here: choose a number range, choose the highest prime filter to apply, then choose how to view the same mathematical state. "
+    "Changing the view never changes which numbers survive or which numbers are confirmed prime. It only changes how the same information is arranged."
+)
+
+with st.expander(
+    "How Prime Lab works",
+    expanded=False,
+):
+    st.markdown(
+        """
+**1. Begin with candidates.** Every integer greater than 1 starts as a possible prime.
+
+**2. Apply prime filters.** If you choose **Prime 7**, Prime Lab applies filters 2, 3, 5, and 7 in order. A composite is assigned to the first prime that proves it composite.
+
+**3. Separate survivors from proven primes.** A survivor is still a candidate. A survivor becomes **confirmed prime** only when the filters already tested are enough to rule out every possible prime divisor up to its square root.
+
+**4. Change the projection.** Square, custom width, active prime alignment, and modulo 30 all show the same numbers in different coordinate systems. A pattern that survives several projections is more interesting than one that appears in only one layout.
+        """
+    )
+
+    st.markdown(
+        "**Color key:** teal = confirmed prime, blue = unresolved survivor, amber = first eliminated by the currently selected prime, gray = eliminated earlier or not a prime candidate."
+    )
 
 
 with st.container(border=True):
-    st.subheader("Experiment controls")
+    st.subheader("1. Choose the experiment")
+    st.caption(
+        "The range chooses which integers are visible. The filter control chooses how much divisibility testing has been completed."
+    )
 
     col_start, col_end, col_filter = st.columns([1, 1, 1.25])
 
@@ -61,6 +95,7 @@ with st.container(border=True):
             min_value=1,
             value=1,
             step=1,
+            help="The first integer included in the experiment.",
         )
 
     with col_end:
@@ -69,6 +104,7 @@ with st.container(border=True):
             min_value=2,
             value=500,
             step=1,
+            help="The last integer included in the experiment.",
         )
 
     with col_filter:
@@ -78,11 +114,15 @@ with st.container(border=True):
         ]
 
         active_prime = st.selectbox(
-            "Apply filters through",
+            "Apply prime filters through",
             filter_options,
             index=0,
             format_func=lambda value: (
-                "No filters" if value is None else f"Prime {value}"
+                "No filters yet" if value is None else f"Prime {value}"
+            ),
+            help=(
+                "Choosing Prime 7 applies the complete sequence 2, 3, 5, and 7. "
+                "Prime Lab never skips an earlier prime filter."
             ),
         )
 
@@ -96,7 +136,7 @@ range_size = range_end - range_start + 1
 
 
 if range_size > 5000:
-    st.warning("The first visual build is limited to 5,000 visible integers.")
+    st.warning("This visual build is currently limited to 5,000 visible integers.")
     st.stop()
 
 
@@ -105,7 +145,6 @@ if active_prime is None:
 
 else:
     active_index = FILTER_PRIMES.index(active_prime)
-
     applied_primes = FILTER_PRIMES[: active_index + 1]
 
 
@@ -122,20 +161,14 @@ confirmed = confirmed_prime_mask(
 )
 
 frontier = certification_frontier(applied_primes)
-
 confirmed_count = int(np.count_nonzero(confirmed))
-
-
 initial_candidates = int(np.count_nonzero(values >= 2))
-
 survivor_count = int(np.count_nonzero(survives))
-
 eliminated_count = initial_candidates - survivor_count
 
 
 if active_prime is None:
     newly_eliminated = 0
-
 else:
     newly_eliminated = int(np.count_nonzero(eliminated_by == active_prime))
 
@@ -146,13 +179,13 @@ survival_rate = survivor_count / initial_candidates if initial_candidates else 0
 metric_1, metric_2, metric_3, metric_4, metric_5 = st.columns(5)
 
 metric_1.metric(
-    "Integers",
+    "Integers shown",
     f"{range_size:,}",
     border=True,
 )
 
 metric_2.metric(
-    "Candidates remaining",
+    "Still surviving",
     f"{survivor_count:,}",
     border=True,
 )
@@ -170,14 +203,21 @@ metric_4.metric(
 )
 
 metric_5.metric(
-    "Candidate survival",
+    "Survival rate",
     f"{survival_rate:.2%}",
     border=True,
 )
 
+st.caption(
+    "Still surviving includes both confirmed primes and unresolved candidates. Confirmed primes are the subset that the current filter sequence has already proven prime."
+)
+
 
 with st.container(border=True):
-    st.subheader("Projection lab")
+    st.subheader("2. Choose how to view the same numbers")
+    st.caption(
+        "A projection changes the geometry of the display, not the underlying mathematics. Use different projections to test whether a visible pattern is arithmetic or just a consequence of layout."
+    )
 
     square_width = max(
         10,
@@ -185,17 +225,17 @@ with st.container(border=True):
     )
 
     projection_options = [
-        "Square fit",
-        "Fixed width",
+        SQUARE_VIEW,
+        CUSTOM_WIDTH_VIEW,
     ]
 
     if active_prime is not None:
         projection_options.append(
-            "Active prime width"
+            ACTIVE_PRIME_VIEW
         )
 
     projection_options.append(
-        "Modulo 30"
+        MODULO_30_VIEW
     )
 
     projection_control, projection_detail = st.columns(
@@ -204,24 +244,23 @@ with st.container(border=True):
 
     with projection_control:
         projection = st.selectbox(
-            "Projection",
+            "View",
             projection_options,
             key="projection_mode",
+            help="Every option rearranges the same experiment state in a different way.",
         )
 
     projection_grid_width = None
 
     with projection_detail:
-        if projection == "Square fit":
+        if projection == SQUARE_VIEW:
             st.metric(
-                "Grid width",
+                "Automatic row width",
                 f"{square_width:,}",
                 border=True,
             )
 
-            projection_grid_width = None
-
-        elif projection == "Fixed width":
+        elif projection == CUSTOM_WIDTH_VIEW:
             maximum_width = max(
                 2,
                 min(
@@ -237,34 +276,76 @@ with st.container(border=True):
 
             projection_grid_width = int(
                 st.number_input(
-                    "Grid width",
+                    "Integers per row",
                     min_value=2,
                     max_value=maximum_width,
                     value=default_width,
                     step=1,
                     key="fixed_projection_width",
+                    help=(
+                        "Changing only this width is a useful test. If a pattern disappears at a nearby width, it may be caused by the projection rather than the integers."
+                    ),
                 )
             )
 
-        elif projection == "Active prime width":
+        elif projection == ACTIVE_PRIME_VIEW:
             projection_grid_width = int(
                 active_prime
             )
 
             st.metric(
-                "Grid width",
+                "Integers per row",
                 f"{projection_grid_width:,}",
                 border=True,
             )
 
         else:
             st.metric(
-                "Wheel modulus",
+                "Remainder classes",
                 "30",
                 border=True,
             )
 
-    if projection == "Modulo 30":
+    if projection == SQUARE_VIEW:
+        st.markdown("**What this view means**")
+        st.write(
+            f"Prime Lab places consecutive integers into rows of {square_width:,}, producing a compact field that is as close to square as practical. "
+            "This is good for seeing overall density, but the row width itself can create visual alignments."
+        )
+
+    elif projection == CUSTOM_WIDTH_VIEW:
+        st.markdown("**What this view means**")
+        st.write(
+            f"Prime Lab places exactly {projection_grid_width:,} consecutive integers in each row. "
+            "Try nearby widths such as one less or one more to see whether a pattern survives the change in geometry."
+        )
+
+    elif projection == ACTIVE_PRIME_VIEW:
+        st.markdown("**What this view means**")
+        st.write(
+            f"Each row contains exactly {active_prime} integers. Values with the same remainder after division by {active_prime} line up vertically. "
+            f"This makes the arithmetic structure of the active prime {active_prime} much easier to see."
+        )
+
+    else:
+        st.markdown("**What this view means**")
+        st.write(
+            "Instead of wrapping integers into ordinary rows, this view sorts every integer into one of 30 horizontal lanes according to its remainder after division by 30."
+        )
+        st.caption(
+            "Example: 31 = 30 × 1 + 1 and 61 = 30 × 2 + 1, so both appear in remainder lane 1. The horizontal direction moves through successive blocks of 30."
+        )
+
+        if active_prime is None or active_prime < 5:
+            st.info(
+                "This view becomes most informative after filters 2, 3, and 5 have all been applied. Choose Prime 5 or higher to reveal the eight lanes that can contain primes greater than 5."
+            )
+        else:
+            st.success(
+                "After filters 2, 3, and 5, every prime greater than 5 must lie in one of these eight remainder lanes: 1, 7, 11, 13, 17, 19, 23, or 29."
+            )
+
+    if projection == MODULO_30_VIEW:
         projection_figure = build_residue_figure(
             values,
             survives,
@@ -283,7 +364,6 @@ with st.container(border=True):
                 applied_primes,
                 grid_width=projection_grid_width,
             )
-
         else:
             projection_figure = build_candidate_figure(
                 values,
@@ -305,39 +385,11 @@ with st.container(border=True):
         key=chart_key,
     )
 
-    if projection == "Square fit":
+    if projection == MODULO_30_VIEW:
         st.caption(
-            f"Square fit wraps consecutive integers every {square_width:,} cells. "
-            "It is useful for overall density, but some alignments can be created by the chosen width."
+            "The right hand bars summarize how many surviving candidates and confirmed primes occupy each remainder lane. The modulo 30 view is intentionally static so the structure can be inspected without animation redraws."
         )
 
-    elif projection == "Fixed width":
-        st.caption(
-            f"Fixed width wraps consecutive integers every {projection_grid_width:,} cells. "
-            "Change only the width to test whether a visible pattern survives a different projection."
-        )
-
-    elif projection == "Active prime width":
-        st.caption(
-            f"The field is wrapped every {active_prime} integers. "
-            f"Values with the same remainder modulo {active_prime} align vertically, "
-            "making the active filter geometry explicit."
-        )
-
-    elif active_prime is None or active_prime < 5:
-        st.caption(
-            "Apply filters through prime 5 to expose the full modulo 30 candidate corridors "
-            "created by eliminating multiples of 2, 3, and 5."
-        )
-
-    else:
-        st.caption(
-            "Modulo 30 groups integers by residue class. "
-            "After prime 5, only residues 1, 7, 11, 13, 17, 19, 23, and 29 "
-            "remain prime eligible above 5."
-        )
-
-    if projection == "Modulo 30":
         summaries = residue_class_summaries(
             values,
             survives,
@@ -383,7 +435,7 @@ with st.container(border=True):
             )
 
             busiest_label = (
-                f"r = {busiest_summary.residue}  ·  "
+                f"Lane {busiest_summary.residue} with "
                 f"{busiest_summary.confirmed:,}"
             )
 
@@ -395,10 +447,12 @@ with st.container(border=True):
             busiest_label = "Not enough confirmed primes"
             spread_label = "Not enough confirmed primes"
 
+        st.markdown("**What the modulo 30 summary is measuring**")
+
         residue_metric_1, residue_metric_2, residue_metric_3, residue_metric_4 = st.columns(4)
 
         residue_metric_1.metric(
-            "Prime eligible residue classes",
+            "Prime eligible lanes",
             "8 of 30",
             border=True,
         )
@@ -416,21 +470,25 @@ with st.container(border=True):
         )
 
         residue_metric_4.metric(
-            "Confirmed lane count range",
+            "Confirmed counts across lanes",
             spread_label,
             border=True,
         )
 
         with st.expander(
-            "Inspect the eight prime eligible residue classes",
+            "Show exact counts for the eight prime eligible lanes",
             expanded=False,
         ):
+            st.write(
+                "Each row below represents one remainder after division by 30. These are the only eight remainders available to primes greater than 5."
+            )
+
             residue_rows = [
                 {
-                    "Residue": summary.residue,
+                    "Remainder": summary.residue,
                     "Confirmed primes": summary.confirmed,
-                    "Unresolved candidates": summary.unresolved,
-                    "Removed by current filter": summary.current_removed,
+                    "Unresolved survivors": summary.unresolved,
+                    "First removed by current prime": summary.current_removed,
                 }
                 for summary in eligible_summaries
             ]
@@ -442,17 +500,19 @@ with st.container(border=True):
             )
 
             st.caption(
-                "The counts are descriptive for the selected finite range. "
-                "The small primes 2, 3, and 5 are special exceptions outside these eight residue classes."
+                "The small primes 2, 3, and 5 are special exceptions because they divide 30 themselves. Counts here describe only the selected finite range and should not be interpreted as a claim that one lane is permanently favored."
             )
 
 
 with st.container(border=True):
-    st.subheader("Filter efficiency")
+    st.subheader("3. Measure how much work each prime filter performs")
+    st.caption(
+        "A filter gets credit only for composites that survived every earlier filter and are eliminated for the first time by that prime."
+    )
 
     if not applied_primes:
         st.write(
-            "Apply at least one prime filter to measure how much unique work each filter performs."
+            "Choose at least Prime 2 above to begin measuring filter efficiency."
         )
 
     else:
@@ -471,20 +531,20 @@ with st.container(border=True):
         efficiency_metric_1, efficiency_metric_2, efficiency_metric_3 = st.columns(3)
 
         efficiency_metric_1.metric(
-            "Current filter unique removals",
+            "New composites removed by current prime",
             f"{current_efficiency.removed:,}",
             border=True,
         )
 
         efficiency_metric_2.metric(
-            "Current marginal removal",
+            "Share of incoming candidates removed",
             f"{current_efficiency.marginal_removal_rate:.2%}",
             border=True,
         )
 
         efficiency_metric_3.metric(
-            "Largest unique contribution",
-            f"Prime {strongest_step.prime}  ·  {strongest_step.removed:,}",
+            "Most productive filter so far",
+            f"Prime {strongest_step.prime} with {strongest_step.removed:,}",
             border=True,
         )
 
@@ -504,19 +564,16 @@ with st.container(border=True):
         )
 
         st.caption(
-            "Each bar counts only composites eliminated for the first time by that prime. "
-            "The blue line measures that prime's removals as a fraction of the candidates that reached it. "
-            "The teal line shows the fraction of the original candidate population still surviving."
+            "Amber bars count newly eliminated composites. The blue line shows the fraction of candidates reaching each filter that it removes. The teal line shows what fraction of the original candidate population remains after that filter."
         )
 
 
 with st.container(border=True):
-    st.subheader("Current filter")
+    st.subheader("4. Understand the current filter state")
 
     if active_prime is None:
         st.write(
-            "No divisibility filters have been applied. "
-            "Every integer greater than 1 begins as a candidate."
+            "No divisibility filters have been applied yet. Every integer greater than 1 is still being treated as a candidate."
         )
 
     else:
@@ -524,28 +581,23 @@ with st.container(border=True):
 
         with detail_left:
             st.write(
-                f"Every prime filter through {active_prime} "
-                "has now been applied."
+                f"Filtering through Prime {active_prime} means every prime filter from 2 through {active_prime} in the sequence has been applied."
             )
 
-            st.code(f"n % {active_prime} == 0")
+            st.code(f"current rule: n % {active_prime} == 0")
 
             if frontier is not None:
-                st.caption(
-                    f"Every surviving candidate below {frontier:,} "
-                    "is now mathematically confirmed prime."
+                st.write(
+                    f"The current proof frontier is **n < {frontier:,}**. Any surviving candidate below that frontier is confirmed prime because every possible prime divisor up to its square root has already been tested."
                 )
 
-            st.caption(
-                "Gray marks resolved composites. "
-                "Blue marks unresolved candidates. "
-                "Teal marks confirmed primes. "
-                "Amber marks the current elimination event."
+            st.markdown(
+                "**Read the colors:** teal is confirmed prime, blue is still unresolved, amber was first eliminated by the currently selected prime, and gray was eliminated earlier or was never a valid prime candidate."
             )
 
         with detail_right:
             st.metric(
-                f"Removed by {active_prime}",
+                f"First removed by Prime {active_prime}",
                 f"{newly_eliminated:,}",
                 border=True,
             )
@@ -557,6 +609,5 @@ with st.container(border=True):
             )
 
     st.caption(
-        "A surviving candidate becomes confirmed once every possible "
-        "prime divisor up to its square root has been ruled out."
+        "Prime Lab distinguishes surviving from proven. Surviving only means no applied filter has eliminated the number yet. Confirmed means the applied filters are already sufficient to prove primality."
     )
