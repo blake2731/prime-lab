@@ -4,6 +4,7 @@ import pytest
 
 from prime_lab.primorial_phase import (
     EULER_MASCHERONI,
+    density_convergence_sweep,
     prime_count_up_to,
     prime_density_observation,
     primorial_stages,
@@ -89,9 +90,49 @@ def test_mertens_approximation_decreases_across_early_stages():
     assert all(stage.survivor_to_mertens_ratio > 0 for stage in stages)
 
 
-def test_invalid_stage_and_density_inputs_are_rejected():
+def test_density_convergence_sweep_uses_known_prime_counts():
+    points = density_convergence_sweep(2, 4)
+
+    assert [point.maximum_integer for point in points] == [100, 1_000, 10_000]
+    assert [point.prime_count for point in points] == [25, 168, 1_229]
+
+
+def test_density_convergence_residuals_match_their_definitions():
+    point = density_convergence_sweep(2, 2)[0]
+    expected_ratio = 2.0 * 2.718281828459045 ** (-EULER_MASCHERONI)
+
+    assert point.prime_density_minus_pnt == pytest.approx(
+        point.empirical_prime_density - point.pnt_density
+    )
+    assert point.wheel_minus_prime_density == pytest.approx(
+        point.wheel_survivor_fraction - point.empirical_prime_density
+    )
+    assert point.wheel_to_pnt_ratio == pytest.approx(
+        point.wheel_survivor_fraction / point.pnt_density
+    )
+    assert point.wheel_ratio_error == pytest.approx(
+        point.wheel_to_pnt_ratio - expected_ratio
+    )
+    assert point.mertens_absolute_error == pytest.approx(
+        point.wheel_survivor_fraction - point.mertens_estimate
+    )
+    assert point.mertens_relative_error == pytest.approx(
+        point.mertens_absolute_error / point.mertens_estimate
+    )
+
+
+def test_invalid_stage_density_and_sweep_inputs_are_rejected():
     with pytest.raises(ValueError):
         primorial_stages(0)
 
     with pytest.raises(ValueError):
         prime_density_observation(9)
+
+    with pytest.raises(ValueError):
+        density_convergence_sweep(1, 4)
+
+    with pytest.raises(ValueError):
+        density_convergence_sweep(5, 4)
+
+    with pytest.raises(ValueError):
+        density_convergence_sweep(2, 8)
