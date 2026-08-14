@@ -26,8 +26,14 @@ with st.expander(
     expanded=True,
 ):
     st.write(
-        "A confirmed prime follows the exact rhythm of its multiples. Prime 2 reaches 4, 6, 8, 10, and so on; Prime 3 reaches 6, 9, 12, 15, and so on. "
-        "The travel time between landings is proportional to the prime, so the visual timing is tied directly to divisibility."
+        "Each confirmed prime repeatedly travels from one multiple to the next. Prime 2 reaches 4, 6, 8, 10, and so on; Prime 3 reaches 6, 9, 12, 15, and so on. "
+        "The travel time is proportional to the prime, so the landing time remains tied directly to divisibility."
+    )
+
+    st.write(
+        "The visible trajectory uses a half sine arch. If t measures progress from one multiple to the next, the vertical shape is proportional to sin(πt). "
+        "That gives every trip a smooth rise and return: the trajectory begins on the number row, reaches its highest point halfway through the trip, and returns exactly to the next multiple. "
+        "π controls the geometry of the arch; it is not being presented as a new relationship between π and the distribution of primes."
     )
 
     st.write(
@@ -45,12 +51,12 @@ with st.expander(
 st.iframe(
     build_kinetic_sieve_html(),
     width="stretch",
-    height=655,
+    height=900,
 )
 
 st.caption(
-    "The browser renders only a sliding visible window while the mathematical frontier continues forward. "
-    "This keeps the page lightweight enough to run continuously for long sessions without retaining every rendered cell."
+    "The visible number row uses a sliding camera rather than continually adding rendered cells. "
+    "The animation also retains only a bounded session log, so the page can continue for long sessions without allowing the visual history or log to grow without limit."
 )
 
 with st.expander(
@@ -64,6 +70,7 @@ with st.expander(
 3. **Repeating rhythms:** small primes create visibly frequent cycles while larger primes contribute progressively longer periods.
 4. **Composite ownership:** even during a multi-prime meeting, the smallest factor remains the first eliminating prime.
 5. **Changing density:** confirmed primes become less frequent as the frontier moves farther along the integers.
+6. **Event log:** the page records confirmed-prime events and shared meetings so interesting moments can be downloaded as CSV and examined outside the animation.
         """
     )
 
