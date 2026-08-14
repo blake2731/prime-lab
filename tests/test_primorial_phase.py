@@ -104,8 +104,14 @@ def test_density_convergence_residuals_match_their_definitions():
     assert point.prime_density_minus_pnt == pytest.approx(
         point.empirical_prime_density - point.pnt_density
     )
+    assert point.prime_density_relative_pnt_error == pytest.approx(
+        point.prime_density_minus_pnt / point.pnt_density
+    )
     assert point.wheel_minus_prime_density == pytest.approx(
         point.wheel_survivor_fraction - point.empirical_prime_density
+    )
+    assert point.wheel_relative_prime_excess == pytest.approx(
+        point.wheel_minus_prime_density / point.empirical_prime_density
     )
     assert point.wheel_to_pnt_ratio == pytest.approx(
         point.wheel_survivor_fraction / point.pnt_density
