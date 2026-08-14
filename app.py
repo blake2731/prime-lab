@@ -5,8 +5,12 @@ from prime_lab.certification import (
     certification_frontier,
     confirmed_prime_mask,
 )
+from prime_lab.filter_efficiency import (
+    filter_efficiency_steps,
+)
 from prime_lab.filters import filter_candidates
 from ui.candidate_grid import build_candidate_figure
+from ui.filter_efficiency import build_filter_efficiency_figure
 from ui.residue_animation import build_residue_animation
 from ui.residue_structure import build_residue_figure
 from ui.sieve_animation import build_sieve_animation
@@ -340,6 +344,70 @@ with st.container(border=True):
             "After prime 5, only residues 1, 7, 11, 13, 17, 19, 23, and 29 "
             "remain prime eligible above 5."
         )
+
+
+with st.container(border=True):
+    st.subheader("Filter efficiency")
+
+    if not applied_primes:
+        st.write(
+            "Apply at least one prime filter to measure how much unique work each filter performs."
+        )
+
+    else:
+        efficiency_steps = filter_efficiency_steps(
+            range_start,
+            range_end,
+            applied_primes,
+        )
+
+        current_efficiency = efficiency_steps[-1]
+        strongest_step = max(
+            efficiency_steps,
+            key=lambda step: step.removed,
+        )
+
+        efficiency_metric_1, efficiency_metric_2, efficiency_metric_3 = st.columns(3)
+
+        efficiency_metric_1.metric(
+            "Current filter unique removals",
+            f"{current_efficiency.removed:,}",
+            border=True,
+        )
+
+        efficiency_metric_2.metric(
+            "Current marginal removal",
+            f"{current_efficiency.marginal_removal_rate:.2%}",
+            border=True,
+        )
+
+        efficiency_metric_3.metric(
+            "Largest unique contribution",
+            f"Prime {strongest_step.prime}  ·  {strongest_step.removed:,}",
+            border=True,
+        )
+
+        efficiency_figure = build_filter_efficiency_figure(
+            range_start,
+            range_end,
+            applied_primes,
+        )
+
+        st.plotly_chart(
+            efficiency_figure,
+            width="stretch",
+            config={
+                "displaylogo": False,
+            },
+            key="filter_efficiency",
+        )
+
+        st.caption(
+            "Each bar counts only composites eliminated for the first time by that prime. "
+            "The blue line measures that prime's removals as a fraction of the candidates that reached it. "
+            "The teal line shows the fraction of the original candidate population still surviving."
+        )
+
 
 with st.container(border=True):
     st.subheader("Current filter")
