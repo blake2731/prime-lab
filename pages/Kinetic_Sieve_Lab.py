@@ -12,7 +12,7 @@ st.set_page_config(
 
 st.title("Kinetic Sieve Lab")
 st.caption(
-    "Watch prime structure emerge as confirmed primes move through their multiples and meet at shared composite numbers."
+    "Visualize prime discovery as synchronized divisibility trajectories moving through the integers."
 )
 
 st.info(
@@ -22,29 +22,29 @@ st.info(
 )
 
 with st.expander(
-    "How to read the motion",
+    "Mathematical interpretation",
     expanded=True,
 ):
     st.write(
         "Each confirmed prime repeatedly travels from one multiple to the next. Prime 2 reaches 4, 6, 8, 10, and so on; Prime 3 reaches 6, 9, 12, 15, and so on. "
-        "The travel time is proportional to the prime, so the landing time remains tied directly to divisibility."
+        "Travel time is proportional to the prime, so landing times remain tied directly to divisibility."
     )
 
     st.write(
         "The visible trajectory uses a half sine arch. If t measures progress from one multiple to the next, the vertical shape is proportional to sin(πt). "
-        "That gives every trip a smooth rise and return: the trajectory begins on the number row, reaches its highest point halfway through the trip, and returns exactly to the next multiple. "
-        "π controls the geometry of the arch; it is not being presented as a new relationship between π and the distribution of primes."
+        "Each trajectory therefore begins on the number row, reaches its highest point halfway through the interval, and returns exactly to the next multiple. "
+        "π determines the geometry of the arch; it is not evidence of a causal relationship between π and prime distribution."
     )
 
     st.write(
         "When trajectories share a multiple, they arrive at the same integer at the same time. "
         "For example, Prime 2 and Prime 3 meet at 6, 12, 18, and every later common multiple. "
-        "Those meetings visualize factor overlap rather than an animation effect."
+        "These meetings visualize exact factor overlap."
     )
 
     st.write(
-        "Prime Lab keeps its existing ownership rule at the same time: a resolved composite belongs to its smallest prime factor, called the first eliminating prime. "
-        "Other prime trajectories may still meet that composite because they are additional factors."
+        "A resolved composite is assigned to its smallest prime factor, called the first eliminating prime. "
+        "Additional prime trajectories may still meet at that composite because they represent other prime factors."
     )
 
 
@@ -56,25 +56,24 @@ st.iframe(
 
 st.caption(
     "The visible number row uses a sliding camera rather than continually adding rendered cells. "
-    "The animation also retains only a bounded session log, so the page can continue for long sessions without allowing the visual history or log to grow without limit."
+    "The animation retains only a bounded session log, allowing long runs without unbounded growth of the rendered history or event table."
 )
 
 with st.expander(
-    "What to look for while it runs",
+    "Observable features",
     expanded=False,
 ):
     st.markdown(
         """
 1. **Prime emergence:** a candidate reaches the frontier without any earlier prime trajectory landing on it and becomes a confirmed prime.
 2. **Shared multiples:** two or more prime trajectories meet at the same composite, revealing its distinct prime factors in real time.
-3. **Repeating rhythms:** small primes create visibly frequent cycles while larger primes contribute progressively longer periods.
-4. **Composite ownership:** even during a multi-prime meeting, the smallest factor remains the first eliminating prime.
+3. **Repeating periods:** small primes create frequent cycles while larger primes contribute progressively longer periods.
+4. **Composite ownership:** during a multiple trajectory meeting, the smallest factor remains the first eliminating prime.
 5. **Changing density:** confirmed primes become less frequent as the frontier moves farther along the integers.
-6. **Event log:** the page records confirmed-prime events and shared meetings so interesting moments can be downloaded as CSV and examined outside the animation.
+6. **Event log:** confirmed prime events and shared meetings are retained in a bounded log that can be exported as CSV for separate analysis.
         """
     )
 
 st.warning(
-    "Kinetic Sieve Lab is an exact visualization of divisibility events, but visible patterns should still be treated as observations rather than mathematical claims. "
-    "Patterns that look interesting can later be measured in Prime Lab instead of being inferred from appearance alone."
+    "Kinetic Sieve Lab is an exact visualization of divisibility events. Visual structure should be treated as an observation until it is measured, reproduced, and compared with established number theoretic results."
 )
