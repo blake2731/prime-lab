@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import lru_cache
 from math import isqrt, pi
 from statistics import fmean
 
@@ -14,7 +15,11 @@ class PrimePhaseState:
     angle_radians: float
     angle_degrees: float
     is_zero_crossing: bool
+    is_relevant_test_prime: bool
     is_relevant_divisor: bool
+    previous_zero: int
+    next_zero: int
+    steps_to_next_zero: int
 
 
 @dataclass(frozen=True)
@@ -46,12 +51,24 @@ def _is_prime(value: int) -> bool:
     return True
 
 
+@lru_cache(maxsize=64)
 def primes_up_to(limit: int) -> tuple[int, ...]:
-    """Return all primes less than or equal to ``limit``."""
+    """Return all primes less than or equal to ``limit`` using a sieve."""
 
     if limit < 2:
         return ()
-    return tuple(value for value in range(2, limit + 1) if _is_prime(value))
+
+    sieve = bytearray(b"\x01") * (limit + 1)
+    sieve[0:2] = b"\x00\x00"
+
+    for prime in range(2, isqrt(limit) + 1):
+        if not sieve[prime]:
+            continue
+        start = prime * prime
+        count = ((limit - start) // prime) + 1
+        sieve[start : limit + 1 : prime] = b"\x00" * count
+
+    return tuple(value for value, flag in enumerate(sieve) if flag)
 
 
 def phase_state(integer: int, prime: int) -> PrimePhaseState:
@@ -69,6 +86,10 @@ def phase_state(integer: int, prime: int) -> PrimePhaseState:
     remainder = integer % prime
     fraction = remainder / prime
     angle_radians = 2 * pi * fraction
+    previous_zero = integer - remainder
+    next_zero = previous_zero + prime
+    relevant_test = prime < integer and prime <= isqrt(integer)
+    zero_crossing = remainder == 0
 
     return PrimePhaseState(
         integer=integer,
@@ -77,8 +98,12 @@ def phase_state(integer: int, prime: int) -> PrimePhaseState:
         phase_fraction=fraction,
         angle_radians=angle_radians,
         angle_degrees=360.0 * fraction,
-        is_zero_crossing=remainder == 0,
-        is_relevant_divisor=(prime < integer and prime <= isqrt(integer)),
+        is_zero_crossing=zero_crossing,
+        is_relevant_test_prime=relevant_test,
+        is_relevant_divisor=relevant_test and zero_crossing,
+        previous_zero=previous_zero,
+        next_zero=next_zero,
+        steps_to_next_zero=next_zero - integer,
     )
 
 
@@ -101,15 +126,29 @@ def synchronized_primes(integer: int, primes: tuple[int, ...] | list[int]) -> tu
 
 
 def relevant_divisor_primes(integer: int) -> tuple[int, ...]:
-    """Return the prime divisors needed to certify compositeness of ``integer``."""
+    """Return distinct phase-zero prime divisors needed to classify ``integer``."""
 
     if integer < 2:
         return ()
-    return tuple(
-        prime
-        for prime in primes_up_to(isqrt(integer))
-        if integer % prime == 0
-    )
+
+    proof_limit = isqrt(integer)
+    remaining = integer
+    factors: list[int] = []
+
+    for prime in primes_up_to(proof_limit):
+        if prime * prime > remaining:
+            break
+        if remaining % prime != 0:
+            continue
+
+        factors.append(prime)
+        while remaining % prime == 0:
+            remaining //= prime
+
+    if remaining > 1 and remaining <= proof_limit:
+        factors.append(remaining)
+
+    return tuple(factors)
 
 
 def is_prime_from_relevant_phases(integer: int) -> bool:
