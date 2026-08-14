@@ -37,10 +37,10 @@ def test_kinetic_html_contains_continuous_browser_animation_and_collision_logic(
     html = build_kinetic_sieve_html()
 
     assert "requestAnimationFrame(frame)" in html
-    assert "lastEvent.kind==='meeting'" in html
-    assert "lastEvent.factors.indexOf(prime)>=0" in html
+    assert "event.kind==='meeting'" in html
+    assert "event.factors.indexOf(prime)>=0" in html
     assert "meet at" in html
-    assert "primeSegment(prime)" in html
+    assert "primeSegment(prime,position)" in html
 
 
 def test_kinetic_arcs_use_pi_based_half_sine_geometry():
@@ -58,6 +58,18 @@ def test_kinetic_html_keeps_numbers_readable_and_camera_bounded():
     assert "function numberFont(value)" in html
     assert "function updateCamera(delta)" in html
     assert "Math.floor(count * 0.38)" in html
+
+
+def test_kinetic_html_has_paused_history_review_without_unbounded_cell_storage():
+    html = build_kinetic_sieve_html()
+
+    assert "Review paused history" in html
+    assert 'id="historySlider"' in html
+    assert "function displayPosition()" in html
+    assert "function reconstructedState(value, position)" in html
+    assert "setReviewPosition(reviewPosition+direction*step)" in html
+    assert "if(running)return;" in html
+    assert "Return to paused frontier" in html
 
 
 def test_kinetic_html_has_bounded_exportable_session_log():
