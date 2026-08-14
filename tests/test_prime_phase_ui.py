@@ -21,6 +21,20 @@ def test_clock_figure_contains_one_circle_and_hand_per_prime():
     )
 
 
+def test_clock_figure_emphasizes_only_actual_phase_zero_divisors():
+    states = phase_states(99_999, (2, 3, 5, 7))
+    figure = build_prime_clock_figure(states)
+
+    amber_lines = [
+        trace
+        for trace in figure.data
+        if hasattr(trace, "line") and trace.line.color == NEWLY_RESOLVED
+    ]
+    assert len(amber_lines) == 2
+    assert any("next zero in 1" in annotation.text for annotation in figure.layout.annotations)
+    assert any("PHASE ZERO" in annotation.text for annotation in figure.layout.annotations)
+
+
 def test_joint_phase_figure_marks_current_state_and_shared_zero():
     points = joint_phase_cycle(3, 5)
     figure = build_joint_phase_figure(
