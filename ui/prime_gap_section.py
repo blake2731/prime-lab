@@ -18,13 +18,12 @@ def render_prime_gap_lab(
     frontier: int | None,
     range_start: int,
     range_end: int,
+    heading: str = "Prime Gap Lab",
 ) -> None:
     """Render an explanatory analysis of gaps between confirmed primes."""
 
     with st.container(border=True):
-        st.subheader(
-            "4. Measure spacing between confirmed primes"
-        )
+        st.subheader(heading)
 
         st.caption(
             "A prime gap is the distance from one confirmed prime to the next confirmed prime. "
