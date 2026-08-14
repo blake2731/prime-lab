@@ -24,10 +24,9 @@ def render_prime_gap_lab(
 
     with st.container(border=True):
         st.subheader(heading)
-
         st.caption(
             "A prime gap is the distance from one confirmed prime to the next confirmed prime. "
-            "This section uses only primes that the current filter sequence has already proven."
+            "Every measurement below uses proven prime endpoints only."
         )
 
         records = prime_gap_records(
@@ -57,38 +56,44 @@ def render_prime_gap_lab(
             frontier is not None
             and frontier > range_end
         ):
-            st.success(
-                "Gap coverage is complete for confirmed primes inside the visible range. "
-                "Every surviving candidate shown is already proven prime."
+            coverage_text = (
+                "Complete coverage: every surviving candidate in the visible range is already proven prime."
             )
+            st.success(coverage_text)
 
         elif frontier is not None:
+            coverage_text = (
+                f"Partial coverage: gap analysis uses only the confirmed region below n = {frontier:,}."
+            )
             st.info(
-                f"This analysis stops at the confirmed region below n = {frontier:,}. "
-                "Blue unresolved survivors at or above that frontier are excluded rather than guessed to be prime."
+                coverage_text
+                + " Unresolved survivors at or above the frontier are excluded rather than guessed to be prime."
             )
 
         st.caption(
-            f"Only gaps whose two endpoints both lie inside the selected range {range_start:,} to {range_end:,} are counted. "
-            "Prime gaps crossing either range boundary are intentionally omitted."
+            f"Only gaps whose two endpoints both lie inside {range_start:,} to {range_end:,} are counted. "
+            "A gap crossing either boundary is omitted."
         )
 
         metric_1, metric_2, metric_3, metric_4 = st.columns(4)
 
         metric_1.metric(
-            "Confirmed gaps analyzed",
+            "Gaps analyzed",
             f"{summary.gap_count:,}",
             border=True,
         )
 
         metric_2.metric(
-            "Average gap",
-            f"{summary.mean_gap:.2f}",
+            "Typical gap",
+            f"Median {summary.median_gap:.0f}",
             border=True,
+            help=(
+                f"The average gap is {summary.mean_gap:.2f}. Median is shown because a few large gaps can pull the average upward."
+            ),
         )
 
         metric_3.metric(
-            "Largest gap in this range",
+            "Largest observed gap",
             (
                 f"{summary.largest_gap:,}  ·  "
                 f"{summary.largest_gap_lower_prime:,} → "
@@ -103,18 +108,41 @@ def render_prime_gap_lab(
             border=True,
         )
 
+        twin_share = (
+            summary.twin_pair_count
+            / summary.gap_count
+        )
+
+        st.markdown("**What stands out in this experiment**")
+        insight_left, insight_middle, insight_right = st.columns(3)
+
+        with insight_left:
+            st.write(
+                f"The most common observed gap is **{summary.most_common_gap}**, appearing **{summary.most_common_gap_count:,} times**."
+            )
+
+        with insight_middle:
+            st.write(
+                f"Twin prime gaps of 2 make up **{twin_share:.1%}** of the confirmed gaps in this selected range."
+            )
+
+        with insight_right:
+            st.write(
+                f"The largest spacing is **{summary.largest_normalized_gap:.2f} × ln(p)** relative to its local logarithmic spacing scale."
+            )
+
         timeline_tab, frequency_tab, normalized_tab = st.tabs(
             [
-                "Gap timeline",
-                "Gap frequency",
-                "Normalized spacing",
+                "Spacing across the range",
+                "Which gaps occur most",
+                "Compare gaps across scale",
             ]
         )
 
         with timeline_tab:
             st.write(
-                "Each blue point is one gap from a confirmed prime p to the next confirmed prime. "
-                "Amber diamonds mark a new largest gap encountered while moving from left to right through this selected range."
+                "Each blue point is one observed gap. The dark line is a 25 gap rolling average when enough data are available. "
+                "Amber diamonds mark new record gaps encountered while moving through this selected range."
             )
 
             st.plotly_chart(
@@ -129,14 +157,14 @@ def render_prime_gap_lab(
             )
 
             st.caption(
-                "The gray dashed curve is ln(p). The prime number theorem implies that ln(p) is an asymptotic local scale for average prime spacing near p. "
-                "It is not a prediction that any individual gap must equal ln(p)."
+                "The gray dashed curve is ln(p), an asymptotic local scale for average prime spacing near p. "
+                "Individual prime gaps can lie well above or below it."
             )
 
         with frequency_tab:
             st.write(
                 "This view counts how often each gap size occurs among the confirmed prime pairs in the selected range. "
-                "A gap of 2 corresponds to a twin prime pair."
+                "A gap of 2 is a twin prime pair."
             )
 
             st.plotly_chart(
@@ -152,8 +180,8 @@ def render_prime_gap_lab(
 
         with normalized_tab:
             st.write(
-                "Raw gap sizes become harder to compare as primes grow because typical spacing also grows. "
-                "This view divides each observed gap by ln(p), where p is the lower prime in the pair."
+                "Prime spacing tends to grow as numbers grow. To make gaps at different magnitudes easier to compare, "
+                "this view divides each observed gap by ln(p), using the lower prime p in the pair."
             )
 
             st.plotly_chart(
@@ -168,16 +196,6 @@ def render_prime_gap_lab(
             )
 
             st.caption(
-                "A ratio above 1 means the observed gap is larger than the local logarithmic spacing scale. "
-                "This ratio is descriptive, not a probability or statistical significance score."
-            )
-
-            st.metric(
-                "Largest gap relative to ln(p)",
-                (
-                    f"{summary.largest_normalized_gap:.2f} ×  ·  "
-                    f"{summary.largest_normalized_lower_prime:,} → "
-                    f"{summary.largest_normalized_upper_prime:,}"
-                ),
-                border=True,
+                "A value of 1 means the gap equals the local logarithmic spacing scale. "
+                "A value of 2 means it is twice that scale. This is descriptive, not a probability or significance score."
             )
