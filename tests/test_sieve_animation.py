@@ -1,5 +1,7 @@
 import numpy as np
 
+from prime_lab.certification import confirmed_prime_mask
+from prime_lab.filters import filter_candidates
 from ui.sieve_animation import build_sieve_animation
 
 
@@ -110,4 +112,102 @@ def test_sieve_animation_preserves_explicit_projection_width():
     assert np.asarray(start_heatmap.z).shape == (
         5,
         7,
+    )
+
+
+def test_settled_checkpoint_keeps_current_filter_eliminations_amber():
+    primes = (
+        2,
+        3,
+        5,
+    )
+
+    figure = build_sieve_animation(
+        1,
+        30,
+        primes,
+    )
+
+    values, survives, eliminated_by = filter_candidates(
+        1,
+        30,
+        primes,
+    )
+
+    confirmed = confirmed_prime_mask(
+        values,
+        survives,
+        primes,
+    )
+
+    final_status = np.asarray(
+        figure.data[0].z
+    )
+
+    assert int(
+        np.count_nonzero(
+            final_status == 2
+        )
+    ) == int(
+        np.count_nonzero(
+            eliminated_by == 5
+        )
+    )
+
+    assert int(
+        np.count_nonzero(
+            final_status == 3
+        )
+    ) == int(
+        np.count_nonzero(
+            confirmed
+        )
+    )
+
+    prime_3_frame = next(
+        frame
+        for frame in figure.frames
+        if frame.name == "prime_3_settle"
+    )
+
+    stage_values, stage_survives, stage_eliminated_by = filter_candidates(
+        1,
+        30,
+        (
+            2,
+            3,
+        ),
+    )
+
+    stage_confirmed = confirmed_prime_mask(
+        stage_values,
+        stage_survives,
+        (
+            2,
+            3,
+        ),
+    )
+
+    prime_3_status = np.asarray(
+        prime_3_frame.data[0].z
+    )
+
+    assert int(
+        np.count_nonzero(
+            prime_3_status == 2
+        )
+    ) == int(
+        np.count_nonzero(
+            stage_eliminated_by == 3
+        )
+    )
+
+    assert int(
+        np.count_nonzero(
+            prime_3_status == 3
+        )
+    ) == int(
+        np.count_nonzero(
+            stage_confirmed
+        )
     )
