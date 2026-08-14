@@ -27,8 +27,8 @@ def test_kinetic_html_uses_prime_lab_state_palette_and_terms():
 def test_kinetic_html_starts_before_prime_two_is_confirmed():
     html = build_kinetic_sieve_html()
 
-    assert 'let simPosition = 1.55;' in html
-    assert 'let processedThrough = 1;' in html
+    assert "let simPosition = 1.55;" in html
+    assert "let processedThrough = 1;" in html
     assert 'id="latestPrime" class="metric-value">None yet<' in html
     assert 'id="primeCount" class="metric-value">0<' in html
 
@@ -37,8 +37,8 @@ def test_kinetic_html_contains_continuous_browser_animation_and_collision_logic(
     html = build_kinetic_sieve_html()
 
     assert "requestAnimationFrame(frame)" in html
-    assert 'lastEvent.kind === "meeting"' in html
-    assert "lastEvent.factors.includes(prime)" in html
+    assert "lastEvent.kind==='meeting'" in html
+    assert "lastEvent.factors.indexOf(prime)>=0" in html
     assert "meet at" in html
     assert "primeSegment(prime)" in html
 
@@ -46,9 +46,9 @@ def test_kinetic_html_contains_continuous_browser_animation_and_collision_logic(
 def test_kinetic_arcs_use_pi_based_half_sine_geometry():
     html = build_kinetic_sieve_html()
 
-    assert "Math.sin(Math.PI * t)" in html
-    assert "Math.sin(Math.PI * phase)" in html
-    assert "span / Math.PI" in html
+    assert "Math.sin(Math.PI*t)" in html
+    assert "Math.sin(Math.PI*phase)" in html
+    assert "span/Math.PI" in html
 
 
 def test_kinetic_html_keeps_numbers_readable_and_camera_bounded():
@@ -57,6 +57,7 @@ def test_kinetic_html_keeps_numbers_readable_and_camera_bounded():
     assert "const CELL_SIZE = 56;" in html
     assert "function numberFont(value)" in html
     assert "function updateCamera(delta)" in html
+    assert "Math.floor(count * 0.38)" in html
 
 
 def test_kinetic_html_has_bounded_exportable_session_log():
@@ -66,7 +67,16 @@ def test_kinetic_html_has_bounded_exportable_session_log():
     assert "const LOG_LIMIT = 10000;" in html
     assert "Download CSV" in html
     assert "prime-lab-kinetic-events-through" in html
-    assert 'event.kind !== "prime" && event.kind !== "meeting"' in html
+    assert "event.kind !== 'prime' && event.kind !== 'meeting'" in html
+
+
+def test_kinetic_html_has_browser_health_and_visible_error_reporting():
+    html = build_kinetic_sieve_html()
+
+    assert 'id="jsHealth"' in html
+    assert "health.dataset.status='ready'" in html
+    assert "health.dataset.status='running'" in html
+    assert "Kinetic Sieve browser error:" in html
 
 
 def test_kinetic_html_uses_requested_runtime_configuration():
