@@ -41,27 +41,34 @@ st.set_page_config(
 
 st.title("Prime Gap Lab")
 st.caption(
-    "Measure how spacing between confirmed primes changes across a selected number range."
+    "How far apart are consecutive primes, and how does that spacing change as the numbers grow?"
 )
 
-st.info(
-    "Prime Gap Lab never assumes that an unresolved survivor is prime. "
-    "Only numbers already proven prime by the selected filter sequence are used to create gaps."
-)
+with st.expander(
+    "What this lab measures",
+    expanded=False,
+):
+    st.write(
+        "Prime Gap Lab measures the distance between consecutive confirmed primes. "
+        "It never promotes an unresolved survivor to prime status just to fill a graph."
+    )
+    st.write(
+        "The main views answer three different questions: how spacing changes across the range, "
+        "which gap sizes occur most often, and how unusually large a gap is relative to the local scale ln(p)."
+    )
 
 
 with st.container(border=True):
-    st.subheader("Choose the gap experiment")
+    st.subheader("Experiment")
     st.caption(
-        "Choose a visible range and how far the prime filtering process should run. "
-        "A higher filter stage pushes the proof frontier farther into the range."
+        "Choose the visible range, then choose how far the sieve should prove primality."
     )
 
     col_start, col_end, col_filter = st.columns(
         [
             1,
             1,
-            1.3,
+            1.35,
         ]
     )
 
@@ -71,6 +78,7 @@ with st.container(border=True):
             min_value=1,
             value=1,
             step=1,
+            help="The first integer included in the gap experiment.",
         )
 
     with col_end:
@@ -79,16 +87,18 @@ with st.container(border=True):
             min_value=2,
             value=5000,
             step=1,
+            help="The last integer included in the gap experiment.",
         )
 
     with col_filter:
         active_prime = st.selectbox(
-            "Apply prime filters through",
+            "Prove using prime filters through",
             FILTER_PRIMES,
             index=len(FILTER_PRIMES) - 1,
             format_func=lambda value: f"Prime {value}",
             help=(
-                "Choosing Prime 23 applies every prime filter from 2 through 23 in sequence."
+                "Choosing Prime 23 applies every prime filter from 2 through 23 in sequence. "
+                "The next prime determines the proof frontier."
             ),
         )
 
@@ -151,28 +161,39 @@ unresolved_count = int(
     )
 )
 
-metric_1, metric_2, metric_3 = st.columns(3)
+coverage_end = min(
+    int(range_end),
+    int(frontier - 1),
+)
+
+metric_1, metric_2, metric_3, metric_4 = st.columns(4)
 
 metric_1.metric(
-    "Confirmed primes in range",
+    "Confirmed primes",
     f"{confirmed_count:,}",
     border=True,
 )
 
 metric_2.metric(
-    "Unresolved survivors excluded",
+    "Unresolved excluded",
     f"{unresolved_count:,}",
     border=True,
 )
 
 metric_3.metric(
     "Proof frontier",
-    (
-        f"n < {frontier:,}"
-        if frontier is not None
-        else "None yet"
-    ),
+    f"n < {frontier:,}",
     border=True,
+)
+
+metric_4.metric(
+    "Confirmed coverage through",
+    f"{coverage_end:,}",
+    border=True,
+)
+
+st.caption(
+    "The proof frontier is a guarantee boundary. Values at or above it may still be prime, but Prime Gap Lab excludes them until the applied filters are sufficient to prove them."
 )
 
 
