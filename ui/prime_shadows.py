@@ -160,6 +160,7 @@ def build_shadow_heatmap(
         ):
             z_row.append(
                 category_index[code]
+                + 0.5
             )
 
             hover_row.append(
@@ -178,10 +179,6 @@ def build_shadow_heatmap(
     ]
 
     category_count = len(categories)
-    zmax = max(
-        category_count - 1,
-        1,
-    )
 
     figure = go.Figure()
 
@@ -192,7 +189,7 @@ def build_shadow_heatmap(
             y=row_labels,
             text=hover,
             zmin=0,
-            zmax=zmax,
+            zmax=category_count,
             colorscale=_discrete_colorscale(
                 colors
             ),
@@ -206,9 +203,12 @@ def build_shadow_heatmap(
             colorbar={
                 "title": "State",
                 "tickmode": "array",
-                "tickvals": list(
-                    range(category_count)
-                ),
+                "tickvals": [
+                    index + 0.5
+                    for index in range(
+                        category_count
+                    )
+                ],
                 "ticktext": [
                     _state_label(code)
                     for code in categories
