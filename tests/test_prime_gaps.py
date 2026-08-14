@@ -108,6 +108,8 @@ def test_gap_summary_counts_twin_pairs_and_largest_gap():
     assert summary is not None
     assert summary.gap_count == 9
     assert summary.twin_pair_count == 4
+    assert summary.most_common_gap == 2
+    assert summary.most_common_gap_count == 4
     assert summary.largest_gap == 6
     assert summary.largest_gap_lower_prime == 23
     assert summary.largest_gap_upper_prime == 29
