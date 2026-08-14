@@ -57,18 +57,18 @@ def _state_name(
         return "Confirmed prime"
 
     if survives[index]:
-        return "Surviving candidate"
+        return "Unresolved survivor"
 
     if current_mask[index]:
         if active_prime is None:
             return "Currently eliminated"
 
-        return f"Removed by prime {active_prime}"
+        return f"First eliminated by prime {active_prime}"
 
     if eliminated_by[index] > 0:
         return (
-            "Previously eliminated "
-            f"by prime {eliminated_by[index]}"
+            "Eliminated earlier by prime "
+            f"{eliminated_by[index]}"
         )
 
     return "Not a prime candidate"
@@ -83,7 +83,7 @@ def build_residue_figure(
     modulus: int = MODULUS,
     current_elimination: np.ndarray | None = None,
 ) -> go.Figure:
-    """Arrange candidate states by residue class modulo a wheel modulus."""
+    """Arrange candidate states by remainder after division by a modulus."""
 
     if modulus < 2:
         raise ValueError("modulus must be at least 2")
@@ -121,10 +121,8 @@ def build_residue_figure(
 
     for index, value in enumerate(values):
         residue = int(residues[index])
-        column = int(
-            quotients[index]
-            - minimum_quotient
-        )
+        quotient = int(quotients[index])
+        column = quotient - minimum_quotient
 
         if confirmed[index]:
             state_code = 3
@@ -150,11 +148,10 @@ def build_residue_figure(
         )
 
         hover_text[residue, column] = (
-            f"<b>{int(value):,}</b>"
-            f"<br>{int(value):,} = "
-            f"{modulus} × {int(quotients[index]):,} "
-            f"+ {residue}"
-            f"<br>Residue {residue} mod {modulus}"
+            f"<b>Integer {int(value):,}</b>"
+            f"<br>{int(value):,} = {modulus} × {quotient:,} + {residue}"
+            f"<br>Remainder after dividing by {modulus}: {residue}"
+            f"<br>Block of {modulus}: {quotient:,}"
             f"<br>{state}"
         )
 
@@ -231,10 +228,10 @@ def build_residue_figure(
             marker={
                 "color": "#2457E6",
             },
-            name="Surviving candidate",
+            name="Unresolved survivor",
             hovertemplate=(
-                "Residue %{y}"
-                "<br>Unresolved %{x:,}"
+                "Remainder lane %{y}"
+                "<br>Unresolved survivors: %{x:,}"
                 "<extra></extra>"
             ),
         ),
@@ -252,8 +249,8 @@ def build_residue_figure(
             },
             name="Confirmed prime",
             hovertemplate=(
-                "Residue %{y}"
-                "<br>Confirmed %{x:,}"
+                "Remainder lane %{y}"
+                "<br>Confirmed primes: %{x:,}"
                 "<extra></extra>"
             ),
         ),
@@ -263,11 +260,11 @@ def build_residue_figure(
 
     legend_entries = (
         (
-            "Previously eliminated",
+            "Eliminated earlier",
             "#E3E8EF",
         ),
         (
-            "Removed by current filter",
+            "First eliminated by current prime",
             "#D97706",
         ),
     )
@@ -305,8 +302,8 @@ def build_residue_figure(
             yanchor="bottom",
             showarrow=False,
             text=(
-                "<b>Modulo 30 structure</b>  ·  "
-                "prime eligible residues above 5: "
+                "<b>Modulo 30 residue lanes</b>  ·  "
+                "possible remainders for primes above 5: "
                 f"{eligible_text}"
             ),
             font={
@@ -323,7 +320,7 @@ def build_residue_figure(
         xanchor="right",
         yanchor="bottom",
         showarrow=False,
-        text="Survivors by residue",
+        text="Counts in each remainder lane",
         font={
             "size": 13,
             "color": "#566173",
@@ -334,10 +331,10 @@ def build_residue_figure(
         height=690,
         barmode="stack",
         margin={
-            "l": 55,
+            "l": 70,
             "r": 20,
             "t": 90,
-            "b": 55,
+            "b": 70,
         },
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
@@ -353,9 +350,7 @@ def build_residue_figure(
     )
 
     figure.update_xaxes(
-        title_text=(
-            f"Quotient k in n = {modulus}k + r"
-        ),
+        title_text=f"Successive blocks of {modulus}",
         showgrid=False,
         zeroline=False,
         row=1,
@@ -363,7 +358,7 @@ def build_residue_figure(
     )
 
     figure.update_xaxes(
-        title_text="survivors",
+        title_text="Count",
         showgrid=True,
         gridcolor="#E3E8EF",
         zeroline=False,
@@ -372,7 +367,7 @@ def build_residue_figure(
     )
 
     figure.update_yaxes(
-        title_text=f"Residue r mod {modulus}",
+        title_text=f"Remainder after dividing by {modulus}",
         tickmode="linear",
         tick0=0,
         dtick=1,
