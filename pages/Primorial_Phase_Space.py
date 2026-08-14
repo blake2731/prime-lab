@@ -5,12 +5,15 @@ import streamlit as st
 
 from prime_lab.primorial_phase import (
     EULER_MASCHERONI,
+    density_convergence_sweep,
     prime_density_observation,
     primorial_stages,
     survivor_residues,
 )
 from ui.primorial_phase import (
+    build_asymptotic_residual_figure,
     build_density_comparison_figure,
+    build_density_residual_figure,
     build_primorial_wheel_figure,
     build_survivor_fraction_figure,
 )
@@ -29,28 +32,32 @@ st.set_page_config(
 
 st.title("Primorial Phase Space")
 st.caption(
-    "Activate prime cycles one at a time and measure how much joint modular phase space still avoids phase zero."
+    "Measure how progressively activated prime cycles reduce the joint modular state space that avoids phase zero."
 )
 
 st.info(
-    "If the active prime clocks are p₁, p₂, ..., pₖ, their joint residue state repeats after the primorial P = p₁p₂...pₖ. "
-    "A state survives when none of those clocks is at phase zero. Exactly ∏(p − 1) states survive, so the surviving fraction is ∏(1 − 1/p)."
+    "For active prime cycles p₁, p₂, ..., pₖ, the complete joint residue state repeats after the primorial P = p₁p₂...pₖ. "
+    "A state survives when none of the active cycles is at phase zero. Exactly ∏(p − 1) states survive, giving the survivor fraction ∏(1 − 1/p)."
 )
 
-with st.expander("Why this connects the earlier Prime Lab experiments", expanded=True):
+with st.expander("Relationship to other Prime Lab views", expanded=True):
     st.write(
-        "Kinetic Sieve Lab shows prime cycles arriving on the number line. Prime Phase Space turns those cycles into circular phase coordinates. "
-        "Primorial Phase Space now asks how much of the combined phase space remains after each new prime cycle excludes its phase-zero slice."
+        "Kinetic Sieve Lab represents divisibility as repeated landings on the number line. Prime Phase Space represents the same modular cycles as circular phase coordinates. "
+        "Primorial Phase Space combines several prime cycles and measures the portion of their joint residue space that remains eligible after phase zero states are excluded."
     )
     st.write(
-        "At the 2, 3, and 5 stage, the joint cycle has length 30 and exactly eight residues avoid phase zero on all three clocks: 1, 7, 11, 13, 17, 19, 23, and 29. "
-        "That is the same modulo 30 candidate structure already visible elsewhere in Prime Lab, expressed as a primorial phase survivor set."
+        "For the active primes 2, 3, and 5, the joint cycle has length 30. Exactly eight residues avoid phase zero on all three cycles: 1, 7, 11, 13, 17, 19, 23, and 29. "
+        "These are the same modulo 30 prime eligible residue classes shown elsewhere in Prime Lab."
+    )
+    st.caption(
+        "A surviving residue class is eligible relative to the active prime cycles; it is not automatically prime. Larger prime factors can still resolve integers in that class as composite."
     )
 
 
-st.subheader("1. Build the primorial sieve staircase")
+st.subheader("1. Primorial sieve staircase")
 st.write(
-    "Each stage activates one additional prime clock. The primorial counts all possible joint residue states in one complete cycle; Euler's totient of that primorial counts the states that avoid phase zero on every active clock."
+    "Each stage activates one additional prime cycle. The primorial P counts every possible joint residue state in one complete period. "
+    "Euler's totient φ(P) counts exactly those states that avoid phase zero on every active cycle."
 )
 
 stage_count = int(
@@ -77,7 +84,7 @@ st.plotly_chart(build_survivor_fraction_figure(stages), width="stretch")
 stage_rows = [
     {
         "Stage": stage.stage,
-        "New prime clock": stage.prime,
+        "New prime cycle": stage.prime,
         "Primorial P": stage.primorial,
         "Surviving states φ(P)": stage.surviving_states,
         "Survivor fraction": stage.survivor_fraction,
@@ -103,13 +110,14 @@ with st.expander("Exact stage table", expanded=False):
 
 st.caption(
     "The dashed curve is the classical Mertens approximation e^(−γ) / ln(p), where γ is the Euler Mascheroni constant. "
-    "It approximates the primorial survivor product as the prime cutoff grows; it is not a fitted Prime Lab formula."
+    "It approximates the exact primorial survivor product as the prime cutoff grows. It is a classical asymptotic result, not a fitted Prime Lab formula."
 )
 
 
-st.subheader("2. See one complete primorial survivor wheel")
+st.subheader("2. Primorial survivor wheel")
 st.write(
-    "Now take one full primorial residue period and wrap it around a circle. Blue points are residue states that avoid phase zero on every active prime clock. Gray points touch phase zero on at least one clock and are therefore excluded by that primorial filter."
+    "One complete primorial residue period can be wrapped around a circle. Blue points avoid phase zero on every active prime cycle. "
+    "Gray points reach phase zero on at least one active cycle and are excluded by that primorial filter."
 )
 
 wheel_stage = int(
@@ -143,19 +151,20 @@ if wheel_modulus == 30:
     st.success(
         "At P = 30 the surviving residues are exactly: "
         + ", ".join(str(residue) for residue in wheel_survivors)
-        + ". This is Prime Lab's modulo 30 candidate set in circular phase form."
+        + ". This is the modulo 30 prime eligible residue set in circular phase form."
     )
 else:
     st.caption(
-        "These blue positions are prime eligible residue classes relative to the active clocks. They are not all prime numbers. "
-        "Larger prime cycles can still eliminate numbers occupying these residue classes."
+        "The blue positions are prime eligible residue classes relative to the active cycles. They are not all prime numbers. "
+        "Additional prime cycles can still eliminate integers occupying these residue classes."
     )
 
 
-st.subheader("3. Compare periodic survivor density with actual prime density")
+st.subheader("3. Periodic survivor density and observed prime density")
 st.write(
-    "This comparison deliberately places two different quantities beside one another. The primorial survivor fraction is a periodic residue density. π(x) / x is the observed fraction of integers up to x that are prime. "
-    "Their difference is part of what a sieve analysis must understand rather than something to hide."
+    "This comparison places distinct quantities beside one another. The primorial survivor fraction is a periodic residue density. "
+    "π(x) / x is the finite observed fraction of integers through x that are prime, while 1 / ln(x) is the leading Prime Number Theorem density approximation. "
+    "The quantities are related, but they should not be interpreted as interchangeable probabilities."
 )
 
 observation_integer = int(
@@ -165,7 +174,7 @@ observation_integer = int(
         max_value=MAX_DENSITY_INTEGER,
         value=1_000_000,
         step=100,
-        help="V1 caps this exact counting comparison at ten million so Streamlit can recompute π(x) interactively without a large persistent memory cost.",
+        help="The exact interactive count is capped at ten million so π(x) can be recomputed without a large persistent memory cost.",
     )
 )
 
@@ -177,7 +186,7 @@ obs_one.metric("π(x)", f"{observation.prime_count:,}")
 obs_two.metric("Observed π(x) / x", f"{observation.empirical_prime_density:.6f}")
 obs_three.metric("PNT 1 / ln(x)", f"{observation.pnt_density:.6f}")
 obs_four.metric(
-    "√x proof clocks",
+    "√x proof cycles",
     f"{observation.proof_prime_count:,} through {observation.proof_cutoff_prime:,}",
 )
 
@@ -194,24 +203,123 @@ ratio_right.metric(
 )
 
 st.info(
-    "Why the blue primorial bar does not simply collapse onto 1 / ln(x): when the prime cutoff is chosen near √x, Mertens' product is approximately "
-    "e^(−γ) / ln(√x) = 2e^(−γ) / ln(x). The factor 2e^(−γ) is about "
-    f"{2 * exp(-EULER_MASCHERONI):.6f}. This is classical sieve behavior, not a newly discovered discrepancy."
+    "With the prime cutoff chosen near √x, Mertens' product is approximately e^(−γ) / ln(√x) = 2e^(−γ) / ln(x). "
+    "Therefore the primorial survivor fraction is not expected to collapse directly onto 1 / ln(x). "
+    f"The classical comparison constant 2e^(−γ) is approximately {2 * exp(-EULER_MASCHERONI):.6f}."
 )
 
 
-st.subheader("4. What is worth investigating from here")
+st.subheader("4. Error and convergence across scale")
+st.write(
+    "Single values can look close by coincidence or by an established asymptotic relationship. A convergence sweep measures the signed discrepancies at the same checkpoints instead. "
+    "The experiment below evaluates powers of ten with one exact Eratosthenes sieve and compares four residual quantities."
+)
+
+with st.expander("How to interpret the residuals", expanded=True):
+    st.markdown(
+        """
+**Prime density minus PNT density** measures `π(x)/x − 1/ln(x)`. A positive value means the observed finite prime density is above the leading PNT density approximation at that x.
+
+**Primorial survivor minus prime density** measures how much periodic phase space survives the √x prime cycles beyond the fraction of integers that are actually prime. A positive value means the primorial filter leaves more candidates than there are primes.
+
+**Survivor/PNT ratio minus 2e^(−γ)** measures convergence toward the classical √x cutoff comparison. Zero would mean the finite ratio equals that asymptotic reference exactly.
+
+**Exact survivor minus Mertens estimate** measures the finite error in using `e^(−γ)/ln(p)` for the primorial survivor product at the proof cutoff prime p. Zero would mean exact agreement at that cutoff.
+        """
+    )
+
+sweep_exponent = int(
+    st.select_slider(
+        "Sweep through",
+        options=[4, 5, 6, 7],
+        value=7,
+        format_func=lambda exponent: f"10^{exponent}",
+        help="The sweep begins at 10² and uses one exact prime sieve through the selected maximum power of ten.",
+    )
+)
+
+with st.spinner("Computing exact convergence checkpoints..."):
+    convergence = density_convergence_sweep(2, sweep_exponent)
+
+latest_convergence = convergence[-1]
+conv_one, conv_two, conv_three, conv_four = st.columns(4)
+conv_one.metric(
+    "π(x)/x − 1/ln(x)",
+    f"{latest_convergence.prime_density_minus_pnt:+.8f}",
+)
+conv_two.metric(
+    "Survivor − π(x)/x",
+    f"{latest_convergence.wheel_minus_prime_density:+.8f}",
+)
+conv_three.metric(
+    "Ratio residual",
+    f"{latest_convergence.wheel_ratio_error:+.8f}",
+)
+conv_four.metric(
+    "Mertens residual",
+    f"{latest_convergence.mertens_absolute_error:+.8f}",
+)
+
+st.plotly_chart(build_density_residual_figure(convergence), width="stretch")
+st.caption(
+    "The zero line is the reference. Crossing it indicates a change in the sign of the finite discrepancy; a sign change by itself does not imply a new theorem or a persistent oscillation."
+)
+
+st.plotly_chart(build_asymptotic_residual_figure(convergence), width="stretch")
+st.caption(
+    "The two residuals in this chart compare different mathematical objects, so their vertical proximity should not be interpreted as equality. "
+    "The useful information is how each residual behaves as x increases."
+)
+
+convergence_rows = [
+    {
+        "x": point.maximum_integer,
+        "π(x)": point.prime_count,
+        "π(x) / x": point.empirical_prime_density,
+        "1 / ln(x)": point.pnt_density,
+        "Primorial survivor": point.wheel_survivor_fraction,
+        "π(x)/x − PNT": point.prime_density_minus_pnt,
+        "Survivor − π(x)/x": point.wheel_minus_prime_density,
+        "Survivor / PNT": point.wheel_to_pnt_ratio,
+        "Ratio − 2e^(−γ)": point.wheel_ratio_error,
+        "Exact − Mertens": point.mertens_absolute_error,
+        "Relative Mertens error": point.mertens_relative_error,
+        "√x cutoff prime": point.proof_cutoff_prime,
+    }
+    for point in convergence
+]
+
+with st.expander("Exact convergence table", expanded=False):
+    st.dataframe(
+        pd.DataFrame(convergence_rows),
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "π(x) / x": st.column_config.NumberColumn(format="%.9f"),
+            "1 / ln(x)": st.column_config.NumberColumn(format="%.9f"),
+            "Primorial survivor": st.column_config.NumberColumn(format="%.9f"),
+            "π(x)/x − PNT": st.column_config.NumberColumn(format="%+.9f"),
+            "Survivor − π(x)/x": st.column_config.NumberColumn(format="%+.9f"),
+            "Survivor / PNT": st.column_config.NumberColumn(format="%.9f"),
+            "Ratio − 2e^(−γ)": st.column_config.NumberColumn(format="%+.9f"),
+            "Exact − Mertens": st.column_config.NumberColumn(format="%+.9f"),
+            "Relative Mertens error": st.column_config.NumberColumn(format="%+.6f"),
+        },
+    )
+
+
+st.subheader("5. Research directions")
 st.markdown(
     """
-1. Track how the exact survivor product approaches the Mertens approximation as more prime clocks are activated.
-2. Compare the periodic survivor fraction with π(x) / x over increasing x and measure their ratio rather than judging the curves visually.
-3. Study how the modulo 30 survivor set grows into modulo 210, 2310, and 30030 wheels while preserving exact phase-zero exclusion rules.
-4. Compare local prime density inside specific surviving residue classes instead of treating every surviving state as equally likely to contain a prime.
-5. Connect the remaining discrepancy to established sieve theory before treating any residual pattern as potentially new.
+1. Extend the convergence sweep and determine which residuals decrease monotonically, change sign, or require a different normalization.
+2. Compare local prime density within individual surviving residue classes rather than treating all primorial survivors as equivalent.
+3. Measure the spacing distribution between consecutive surviving residues for modulo 30, 210, 2310, and 30030 wheels.
+4. Compare finite sieve residuals with established analytic number theory bounds before assigning significance to apparent structure.
+5. Export reproducible datasets for any pattern that persists across independent ranges and parameter choices.
     """
 )
 
 st.warning(
-    "Primorial Phase Space reorganizes established modular arithmetic, Euler totients, Mertens' product, and prime counting into one experimental view. "
-    "A visual alignment or numerical ratio is not evidence of a new theorem by itself. The research value is in making exact comparisons easy enough to test systematically."
+    "Primorial Phase Space reorganizes established modular arithmetic, Euler totients, Mertens' product, and prime counting into an experimental coordinate system. "
+    "Visual alignment, numerical proximity, or a residual trend is not evidence of a new theorem by itself. Any candidate pattern should be tested against established theory and independent numerical ranges."
 )
