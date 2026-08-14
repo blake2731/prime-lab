@@ -1,7 +1,14 @@
-from prime_lab.primorial_phase import prime_density_observation, primorial_stages, survivor_residues
+from prime_lab.primorial_phase import (
+    density_convergence_sweep,
+    prime_density_observation,
+    primorial_stages,
+    survivor_residues,
+)
 from ui.primorial_phase import (
     UNRESOLVED_CANDIDATE,
+    build_asymptotic_residual_figure,
     build_density_comparison_figure,
+    build_density_residual_figure,
     build_primorial_wheel_figure,
     build_survivor_fraction_figure,
 )
@@ -41,3 +48,24 @@ def test_density_comparison_figure_contains_four_distinct_quantities():
     assert "Primorial survivor fraction" in labels
     assert "Observed π(x) / x" in labels
     assert "Prime number theorem 1 / ln(x)" in labels
+
+
+def test_density_residual_figure_contains_two_signed_error_series():
+    points = density_convergence_sweep(2, 4)
+    figure = build_density_residual_figure(points)
+
+    assert len(figure.data) == 2
+    assert figure.data[0].name == "π(x)/x − 1/ln(x)"
+    assert figure.data[1].name == "Primorial survivor − π(x)/x"
+    assert list(figure.data[0].x) == [100, 1_000, 10_000]
+    assert figure.layout.xaxis.type == "log"
+
+
+def test_asymptotic_residual_figure_tracks_two_classical_references():
+    points = density_convergence_sweep(2, 4)
+    figure = build_asymptotic_residual_figure(points)
+
+    assert len(figure.data) == 2
+    assert figure.data[0].name == "Survivor/PNT ratio − 2e^(−γ)"
+    assert figure.data[1].name == "Exact survivor − Mertens estimate"
+    assert figure.layout.xaxis.type == "log"
