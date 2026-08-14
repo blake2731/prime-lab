@@ -89,17 +89,17 @@ st.set_page_config(
 
 st.title("Prime Shadow Lab")
 st.caption(
-    "Learn how divisibility removes prime candidates around a confirmed prime, then compare those local environments experimentally."
+    "Analyze the local divisibility environment around a confirmed prime and compare those environments experimentally."
 )
 
 st.info(
-    "A prime shadow records what happens to the integers surrounding a prime. "
+    "A prime shadow records the sieve state of integers surrounding a confirmed prime. "
     "For every nearby composite, Prime Lab records the first applied prime filter that proves it composite. "
-    "The center remains a confirmed prime. The resulting sequence is a local sieve fingerprint."
+    "The center remains a confirmed prime, producing a local sieve fingerprint that can be measured and compared."
 )
 
 with st.expander(
-    "Learn the idea first",
+    "Concept and interpretation",
     expanded=True,
 ):
     st.write(
@@ -113,17 +113,17 @@ with st.expander(
     )
 
     st.write(
-        "This means 49 is first resolved as composite by 7, 50 by 2, 51 by 3, and 52 by 2. "
+        "Here, 49 is first resolved as composite by 7, 50 by 2, 51 by 3, and 52 by 2. "
         "The number 53 remains prime, and 59 is another confirmed prime in the same neighborhood."
     )
 
     st.write(
-        "The purpose of the shadow is therefore not decorative. It lets us study a prime together with the divisibility structure around it. "
-        "We can then ask whether distant primes have similar local environments, and whether those environments relate to prime gaps, twin primes, or other recurring structures."
+        "The shadow therefore represents a prime together with the divisibility structure surrounding it. "
+        "Comparisons between distant shadows can test whether similar local environments recur near prime gaps, twin primes, or other prime configurations."
     )
 
     st.caption(
-        "Learning goal: read a shadow as a record of which prime divisors first remove neighboring integers from prime candidacy."
+        "Interpretation goal: read a shadow as a record of which prime divisors first remove neighboring integers from prime candidacy."
     )
 
 
@@ -374,7 +374,7 @@ with st.container(border=True):
             }
         )
 
-    st.markdown("**Example: interpret a small section before reading the full visualization**")
+    st.markdown("**Example interpretation before the full visualization**")
 
     st.dataframe(
         example_rows,
@@ -404,7 +404,7 @@ with st.container(border=True):
 
     st.write(
         f"Within this window, **{target_counts['higher_prime_shadows']:,}** composite neighbors are not resolved by 2, 3, or 5 and require a larger prime filter. "
-        f"That is **{higher_shadow_share:.1%}** of the resolved composite neighbors. These positions are useful when looking beyond the strongest repeating effects of small primes."
+        f"That is **{higher_shadow_share:.1%}** of the resolved composite neighbors. These positions reduce the dominance of the strongest small prime cycles when local structure is compared."
     )
 
 
@@ -412,12 +412,12 @@ with st.container(border=True):
     st.subheader("3. Compare local environments")
 
     st.write(
-        "Prime Shadow Lab can now ask whether distant primes have similar divisibility environments at the same relative offsets. "
-        "The initial comparison method measures exact state agreement position by position."
+        "The comparison measures whether distant confirmed primes have similar divisibility environments at the same relative offsets. "
+        "The current method uses exact state agreement position by position."
     )
 
     st.caption(
-        "Important: repeating divisibility by 2, 3, and 5 can dominate a raw comparison. "
+        "Repeating divisibility by 2, 3, and 5 can dominate a raw comparison. "
         "The exploratory deeper score therefore ignores positions where either shadow is first resolved by 2, 3, or 5. "
         "Agreement must always be interpreted together with the number of positions that remain available for comparison."
     )
@@ -495,7 +495,7 @@ with st.container(border=True):
         else:
             st.info(
                 f"Among the top {match_count} exploratory matches, {same_mod_30} share the same modulo 30 residue class as the center prime. "
-                "This helps indicate whether familiar wheel structure may still be contributing to the result."
+                "This indicates how much familiar wheel structure may still contribute to the result."
             )
 
         comparison_shadows = [target_shadow]
@@ -536,7 +536,7 @@ with st.container(border=True):
         ]
 
         with st.expander(
-            "Inspect the evidence behind the similarity scores",
+            "Evidence behind the similarity scores",
             expanded=False,
         ):
             st.dataframe(
@@ -552,17 +552,17 @@ with st.container(border=True):
 
 
 with st.container(border=True):
-    st.subheader("4. Continue the investigation")
+    st.subheader("4. Further investigation")
 
     st.write(
-        "Prime Shadow Lab is designed as both a learning tool and an experimental instrument. "
-        "First, it makes the sieve process visible: nearby composites are classified by the earliest prime filter that resolves them. "
-        "Second, it lets us formulate and test questions about whether local divisibility environments recur around different primes."
+        "Prime Shadow Lab serves both explanatory and experimental purposes. "
+        "The sieve process is made explicit by classifying nearby composites according to the earliest prime filter that resolves them. "
+        "The resulting local fingerprints can then support controlled tests of recurrence around different primes."
     )
 
     st.markdown(
         """
-**Questions worth testing**
+**Suggested research questions**
 
 1. Do distant primes retain unusual local similarity after obvious small prime structure is controlled for?
 2. Do particular shadow patterns occur more often around twin primes or unusually large prime gaps?
@@ -572,5 +572,5 @@ with st.container(border=True):
     )
 
     st.caption(
-        "The goal is to make each experiment understandable enough to learn from, while keeping the underlying mathematics explicit enough to test critically."
+        "Each experiment should remain understandable enough to inspect directly while retaining explicit mathematical definitions and reproducible controls."
     )
