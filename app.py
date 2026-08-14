@@ -9,9 +9,9 @@ from prime_lab.filter_efficiency import (
     filter_efficiency_steps,
 )
 from prime_lab.filters import filter_candidates
+from prime_lab.residue_analysis import residue_class_summaries
 from ui.candidate_grid import build_candidate_figure
 from ui.filter_efficiency import build_filter_efficiency_figure
-from ui.residue_animation import build_residue_animation
 from ui.residue_structure import build_residue_figure
 from ui.sieve_animation import build_sieve_animation
 
@@ -265,21 +265,13 @@ with st.container(border=True):
             )
 
     if projection == "Modulo 30":
-        if applied_primes:
-            projection_figure = build_residue_animation(
-                range_start,
-                range_end,
-                applied_primes,
-            )
-
-        else:
-            projection_figure = build_residue_figure(
-                values,
-                survives,
-                eliminated_by,
-                confirmed,
-                active_prime,
-            )
+        projection_figure = build_residue_figure(
+            values,
+            survives,
+            eliminated_by,
+            confirmed,
+            active_prime,
+        )
 
         chart_key = "projection_modulo_30"
 
@@ -344,6 +336,115 @@ with st.container(border=True):
             "After prime 5, only residues 1, 7, 11, 13, 17, 19, 23, and 29 "
             "remain prime eligible above 5."
         )
+
+    if projection == "Modulo 30":
+        summaries = residue_class_summaries(
+            values,
+            survives,
+            eliminated_by,
+            confirmed,
+            active_prime,
+            modulus=30,
+        )
+
+        eligible_summaries = tuple(
+            summary
+            for summary in summaries
+            if summary.prime_eligible
+        )
+
+        confirmed_above_five = int(
+            np.count_nonzero(
+                confirmed
+                & (values > 5)
+            )
+        )
+
+        if confirmed_above_five:
+            confirmed_counts = [
+                summary.confirmed
+                for summary in eligible_summaries
+            ]
+
+            minimum_confirmed = min(
+                confirmed_counts
+            )
+
+            maximum_confirmed = max(
+                confirmed_counts
+            )
+
+            busiest_summary = max(
+                eligible_summaries,
+                key=lambda summary: (
+                    summary.confirmed,
+                    -summary.residue,
+                ),
+            )
+
+            busiest_label = (
+                f"r = {busiest_summary.residue}  ·  "
+                f"{busiest_summary.confirmed:,}"
+            )
+
+            spread_label = (
+                f"{minimum_confirmed:,} to {maximum_confirmed:,}"
+            )
+
+        else:
+            busiest_label = "Not enough confirmed primes"
+            spread_label = "Not enough confirmed primes"
+
+        residue_metric_1, residue_metric_2, residue_metric_3, residue_metric_4 = st.columns(4)
+
+        residue_metric_1.metric(
+            "Prime eligible residue classes",
+            "8 of 30",
+            border=True,
+        )
+
+        residue_metric_2.metric(
+            "Confirmed primes above 5",
+            f"{confirmed_above_five:,}",
+            border=True,
+        )
+
+        residue_metric_3.metric(
+            "Most populated confirmed lane",
+            busiest_label,
+            border=True,
+        )
+
+        residue_metric_4.metric(
+            "Confirmed lane count range",
+            spread_label,
+            border=True,
+        )
+
+        with st.expander(
+            "Inspect the eight prime eligible residue classes",
+            expanded=False,
+        ):
+            residue_rows = [
+                {
+                    "Residue": summary.residue,
+                    "Confirmed primes": summary.confirmed,
+                    "Unresolved candidates": summary.unresolved,
+                    "Removed by current filter": summary.current_removed,
+                }
+                for summary in eligible_summaries
+            ]
+
+            st.dataframe(
+                residue_rows,
+                width="stretch",
+                hide_index=True,
+            )
+
+            st.caption(
+                "The counts are descriptive for the selected finite range. "
+                "The small primes 2, 3, and 5 are special exceptions outside these eight residue classes."
+            )
 
 
 with st.container(border=True):
