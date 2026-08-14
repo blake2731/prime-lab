@@ -7,6 +7,10 @@ from prime_lab.certification import (
 )
 from prime_lab.filters import filter_candidates
 from prime_lab.prime_shadows import (
+    CONFIRMED_CODE,
+    NON_CANDIDATE_CODE,
+    TARGET_CODE,
+    UNRESOLVED_CODE,
     build_prime_shadow,
     find_shadow_matches,
     shadow_state_counts,
@@ -37,6 +41,45 @@ FILTER_PRIMES = (
 )
 
 
+def plain_shadow_state(code: int) -> str:
+    """Translate a shadow state into newcomer friendly language."""
+
+    if code == TARGET_CODE:
+        return "CENTER PRIME"
+
+    if code == CONFIRMED_CODE:
+        return "PRIME"
+
+    if code == UNRESOLVED_CODE:
+        return "?"
+
+    if code == NON_CANDIDATE_CODE:
+        return "not a candidate"
+
+    return str(code)
+
+
+def plain_shadow_explanation(code: int) -> str:
+    """Explain exactly what one shadow code means."""
+
+    if code == TARGET_CODE:
+        return "This is the center prime. It survived every applied filter."
+
+    if code == CONFIRMED_CODE:
+        return "This nearby number also survived and is mathematically confirmed prime."
+
+    if code == UNRESOLVED_CODE:
+        return "No applied filter has eliminated this number yet, but it is not proven prime."
+
+    if code == NON_CANDIDATE_CODE:
+        return "This number was never a valid prime candidate."
+
+    return (
+        f"Prime {code} was the first filter to prove this number composite, "
+        "so it was the first prime to yank it out of prime candidacy."
+    )
+
+
 st.set_page_config(
     page_title="Prime Shadow Lab",
     page_icon="∴",
@@ -46,31 +89,37 @@ st.set_page_config(
 
 st.title("Prime Shadow Lab")
 st.caption(
-    "Study a prime by the divisibility structure of the integers surrounding it."
+    "See a prime as the survivor inside a neighborhood where other numbers are being eliminated from prime candidacy."
 )
 
 st.info(
-    "Prime Shadow Lab does not ask only where a prime sits on the number line. "
-    "It asks which small prime first eliminates each neighboring integer, creating a local sieve fingerprint around the center prime."
+    "The simplest way to think about a prime shadow: every integer starts as a possible prime. "
+    "As we test divisibility by 2, 3, 5, 7, and later primes, composite numbers get yanked out of prime candidacy. "
+    "A shadow records which prime filter got each nearby number first. The center prime is the survivor."
 )
 
 with st.expander(
-    "What is a prime shadow?",
-    expanded=False,
+    "Why this is useful",
+    expanded=True,
 ):
     st.write(
-        "Take a confirmed prime and look the same distance to its left and right. "
-        "Every nearby composite is assigned to the first applied prime filter that proves it composite. "
-        "Because filters are applied in ascending prime order, that label is the smallest applied prime divisor responsible for eliminating the number."
+        "Ordinary prime plots mostly tell us where primes are. A shadow tells us what arithmetic environment surrounds one prime. "
+        "For example, if a nearby number is labeled 7, that means 7 was the first applied prime that proved it composite."
+    )
+
+    st.code(
+        "Integer     49   50   51   52   [53]   54   55   56   57   58   59\n"
+        "First yank   7    2    3    2     P      2    5    2    3    2     P"
     )
 
     st.write(
-        "Confirmed prime neighbors stay visible as primes. Unresolved survivors remain separate so Prime Lab never quietly treats an unproven candidate as prime."
+        "Read that as: 49 lost prime candidacy to 7, 50 to 2, 51 to 3, 52 to 2, while 53 survived as prime. "
+        "That sequence of eliminations is the local shadow around 53."
     )
 
     st.write(
-        "The result is a position by position fingerprint of the local sieve environment. "
-        "Two distant primes can then be compared by asking how often the same relative positions have the same mathematical state."
+        "Once we can describe one prime this way, we can ask whether distant primes live inside similar elimination environments, "
+        "or whether certain shadow patterns tend to appear before twin primes, large gaps, or other interesting prime behavior."
     )
 
 
@@ -312,35 +361,41 @@ right_gap = (
 
 
 with st.container(border=True):
-    st.subheader("2. Read this prime's local sieve fingerprint")
+    st.subheader("2. See what yanked the neighboring numbers out of prime candidacy")
 
     st.write(
-        f"The fingerprint below is centered on confirmed prime **{target_prime:,}** and covers offsets from **-{radius}** through **+{radius}**. "
-        "The same offset always means the same relative position when two primes are compared."
+        f"We are centering the view on confirmed prime **{target_prime:,}**. "
+        f"Every position from **-{radius}** through **+{radius}** asks the same question: "
+        "what happened to the integer at this distance from the center prime?"
+    )
+
+    st.info(
+        "A number inside a composite cell is not the composite itself. It is the first prime filter that proved that neighbor composite. "
+        "So a cell labeled 7 means: 7 was the first prime that yanked that neighbor out of prime candidacy."
     )
 
     metric_1, metric_2, metric_3, metric_4, metric_5 = st.columns(5)
 
     metric_1.metric(
-        "Window width",
+        "Numbers in the shadow",
         f"{2 * radius + 1:,}",
         border=True,
     )
 
     metric_2.metric(
-        "Composite neighbors resolved",
+        "Neighbors proven composite",
         f"{target_counts['filtered_composites']:,}",
         border=True,
     )
 
     metric_3.metric(
-        "Prime neighbors confirmed",
+        "Nearby primes that survived",
         f"{target_counts['confirmed_neighbors']:,}",
         border=True,
     )
 
     metric_4.metric(
-        "Gap before",
+        "Previous prime is this far away",
         (
             f"{left_gap:,}"
             if left_gap is not None
@@ -350,13 +405,57 @@ with st.container(border=True):
     )
 
     metric_5.metric(
-        "Gap after",
+        "Next prime is this far away",
         (
             f"{right_gap:,}"
             if right_gap is not None
             else "Boundary"
         ),
         border=True,
+    )
+
+    center_index = target_shadow.offsets.index(0)
+    example_start = max(
+        0,
+        center_index - 4,
+    )
+    example_end = min(
+        len(target_shadow.offsets),
+        center_index + 7,
+    )
+
+    example_rows = []
+
+    for offset, value, code in zip(
+        target_shadow.offsets[
+            example_start:example_end
+        ],
+        target_shadow.values[
+            example_start:example_end
+        ],
+        target_shadow.state_codes[
+            example_start:example_end
+        ],
+        strict=True,
+    ):
+        example_rows.append(
+            {
+                "Offset": f"{offset:+d}",
+                "Integer": value,
+                "Shadow label": plain_shadow_state(code),
+                "What it means": plain_shadow_explanation(code),
+            }
+        )
+
+    st.markdown("**Read a small slice before reading the full shadow**")
+    st.dataframe(
+        example_rows,
+        width="stretch",
+        hide_index=True,
+    )
+
+    st.caption(
+        "The Shadow label column is exactly what the colors below encode. P means a confirmed prime. A number such as 2, 3, 5, or 7 is the first prime filter that eliminated that neighbor."
     )
 
     st.plotly_chart(
@@ -374,8 +473,8 @@ with st.container(border=True):
     )
 
     st.caption(
-        "The center line is the target prime. For composite cells, the color identifies the smallest applied prime divisor that eliminated that integer. "
-        "Confirmed prime neighbors are shown as their own state."
+        "The dark center line is the target prime. Moving left or right means moving the same number of integers away from that prime. "
+        "For composite cells, color identifies the first applied prime divisor that eliminated that integer from prime candidacy."
     )
 
     higher_shadow_share = (
@@ -387,21 +486,27 @@ with st.container(border=True):
     )
 
     st.write(
-        f"In this window, **{target_counts['higher_prime_shadows']:,}** resolved composite positions are first explained by primes larger than 5. "
-        f"That is **{higher_shadow_share:.1%}** of the resolved composite neighbors, after the strongest 2, 3, and 5 wheel effects are accounted for separately."
+        f"In this window, **{target_counts['higher_prime_shadows']:,}** composite neighbors were not caught by 2, 3, or 5 and needed a larger prime filter to eliminate them. "
+        f"That is **{higher_shadow_share:.1%}** of the resolved composite neighbors. These positions are especially interesting because they sit beyond the strongest repeating wheel structure."
     )
 
 
 with st.container(border=True):
-    st.subheader("3. Search for distant primes with similar shadows")
+    st.subheader("3. Ask whether distant primes live in similar neighborhoods")
 
     st.write(
-        "A raw comparison can be dominated by the repeating divisibility patterns of 2, 3, and 5. "
-        "Prime Shadow Lab therefore also computes a deeper comparison that ignores any position where either shadow is first eliminated by 2, 3, or 5."
+        "Now that one shadow is readable, comparison has a simple meaning: "
+        "do two distant primes have nearby numbers yanked out of prime candidacy by the same primes at the same relative positions?"
+    )
+
+    st.write(
+        "A raw comparison is heavily influenced by the repeating effects of 2, 3, and 5. "
+        "Prime Shadow Lab therefore also computes a deeper comparison that ignores positions where either shadow is first eliminated by 2, 3, or 5."
     )
 
     st.caption(
-        "The deeper score asks a narrower question: after removing the obvious base wheel structure, how often do the remaining relative positions still have exactly the same mathematical state?"
+        "This deeper score is exploratory. A high percentage is not automatically strong evidence because the number of remaining positions matters too. "
+        "The exact table below always reports how many positions were actually compared."
     )
 
     matches = find_shadow_matches(
@@ -450,28 +555,55 @@ with st.container(border=True):
             for match in top_matches
         )
 
-        similarity_metric_1, similarity_metric_2, similarity_metric_3 = st.columns(3)
+        total_noncenter_positions = 2 * radius
+        deep_coverage = (
+            strongest_match.deep_positions_compared
+            / total_noncenter_positions
+        )
+
+        similarity_metric_1, similarity_metric_2, similarity_metric_3, similarity_metric_4 = st.columns(4)
 
         similarity_metric_1.metric(
-            "Best deeper match",
+            "Closest deeper shadow",
             f"Prime {strongest_match.prime:,}",
             border=True,
         )
 
         similarity_metric_2.metric(
-            "Deeper exact match",
+            "Agreement on compared positions",
             f"{strongest_match.deep_similarity:.1%}",
             border=True,
         )
 
         similarity_metric_3.metric(
-            "Top matches sharing target mod 30 lane",
-            f"{same_mod_30} of {match_count}",
+            "Positions actually compared",
+            (
+                f"{strongest_match.deep_positions_compared} of "
+                f"{total_noncenter_positions}"
+            ),
+            border=True,
+        )
+
+        similarity_metric_4.metric(
+            "Informative coverage",
+            f"{deep_coverage:.1%}",
             border=True,
             help=(
-                "This helps reveal whether a similarity result is still strongly tied to the familiar modulo 30 wheel."
+                "Coverage is the share of noncenter positions left after removing positions dominated by 2, 3, and 5. A high agreement with very low coverage should be treated cautiously."
             ),
         )
+
+        if deep_coverage < 0.25:
+            st.warning(
+                "The best match is based on relatively few informative positions after removing the 2, 3, and 5 structure. "
+                "Treat the agreement percentage as weak evidence until we replace this first similarity method with a stronger wheel normalized comparison."
+            )
+
+        else:
+            st.info(
+                f"Among the top {match_count} deeper matches, {same_mod_30} share the same modulo 30 lane as the center prime. "
+                "That check helps us notice when familiar wheel structure may still be driving the result."
+            )
 
         comparison_shadows = [
             target_shadow
@@ -505,15 +637,18 @@ with st.container(border=True):
                 "Prime": match.prime,
                 "Distance from target": match.distance,
                 "Prime mod 30": match.residue_mod_30,
-                "Full shadow match": f"{match.full_similarity:.1%}",
-                "Beyond 2, 3, 5 match": f"{match.deep_similarity:.1%}",
-                "Deep positions compared": match.deep_positions_compared,
+                "Full shadow agreement": f"{match.full_similarity:.1%}",
+                "Agreement after ignoring 2, 3, 5": f"{match.deep_similarity:.1%}",
+                "Positions actually compared": match.deep_positions_compared,
+                "Coverage": (
+                    f"{match.deep_positions_compared / total_noncenter_positions:.1%}"
+                ),
             }
             for match in top_matches
         ]
 
         with st.expander(
-            "Show exact similarity results",
+            "Show the evidence behind the similarity scores",
             expanded=False,
         ):
             st.dataframe(
@@ -529,18 +664,23 @@ with st.container(border=True):
 
 
 with st.container(border=True):
-    st.subheader("4. What could become interesting")
+    st.subheader("4. Why we are looking at shadows")
 
     st.write(
-        "This first version gives us a new coordinate system for primes: local sieve environment rather than numerical location. "
-        "The next experiments can test whether shadow families correlate with prime gaps, twin primes, residue classes, or unusually large empty intervals."
+        "The point is not to make another decorative prime picture. A shadow turns each prime into a local arithmetic environment. "
+        "Instead of only asking where a prime occurs, we can ask what sequence of divisibility constraints surrounds the survivor."
+    )
+
+    st.write(
+        "For a large prime gap, this means we can inspect which primes collectively eliminated every number between the two surviving endpoints. "
+        "For twin primes, we can ask whether their surrounding elimination environments have recurring features."
     )
 
     st.markdown(
         """
 **Good signs to investigate later**
 
-1. Distant primes remain unusually similar after the 2, 3, and 5 structure is removed.
+1. Distant primes remain unusually similar after the obvious 2, 3, and 5 structure is controlled for.
 2. Similar shadow families repeatedly share unusual gap behavior.
 3. A pattern survives changes in shadow radius and filter depth.
 4. The same effect appears in independent number ranges rather than only one selected interval.
