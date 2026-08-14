@@ -82,7 +82,10 @@ def test_mertens_approximation_decreases_across_early_stages():
     stages = primorial_stages(10)
     estimates = [stage.mertens_estimate for stage in stages]
 
-    assert all(first > second for first, second in zip(estimates, estimates[1:], strict=True))
+    assert all(
+        first > second
+        for first, second in zip(estimates[:-1], estimates[1:], strict=True)
+    )
     assert all(stage.survivor_to_mertens_ratio > 0 for stage in stages)
 
 
