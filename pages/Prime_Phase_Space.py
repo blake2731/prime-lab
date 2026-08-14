@@ -29,28 +29,28 @@ st.set_page_config(
 
 st.title("Prime Phase Space")
 st.caption(
-    "View divisibility as synchronized circular phase: every prime defines a repeating clock, and multiples occur when that clock returns to phase zero."
+    "Represent divisibility as synchronized circular phase, with one repeating cycle for each prime."
 )
 
 st.info(
-    "For a prime p and integer n, Prime Lab normalizes the remainder n mod p into one turn of a circle. "
+    "For a prime p and integer n, the remainder n mod p can be normalized to one turn of a circle. "
     "The phase is (n mod p) / p and the corresponding angle is 2π(n mod p) / p. "
     "A return to phase zero means p divides n exactly."
 )
 
-with st.expander("Why this connects to primality", expanded=True):
+with st.expander("Relationship to primality", expanded=True):
     st.write(
-        "As n advances by one, every prime clock advances by one residue step. A composite integer is reached when at least one relevant earlier prime clock returns to phase zero. "
-        "To prove that n is prime, it is enough to check prime cycles through √n. If none of those relevant clocks is at zero, n has no possible smaller prime divisor and is therefore prime."
+        "As n advances by one, every prime cycle advances by one residue step. A composite integer is reached when at least one relevant earlier prime cycle returns to phase zero. "
+        "To prove that n is prime, it is sufficient to check prime cycles through √n. If none of those cycles is at zero, n has no possible smaller prime divisor."
     )
     st.write(
-        "The clock for n itself is not used as evidence that n is composite. For example, the Prime 5 clock is at phase zero at n = 5, but 5 is still prime because no smaller relevant prime cycle divides it."
+        "The cycle associated with n itself is not evidence that n is composite. For example, the Prime 5 cycle is at phase zero at n = 5, but 5 remains prime because no smaller relevant prime cycle divides it."
     )
     st.write(
-        "When several prime clocks return to zero together, Prime Phase Space shows the same shared-multiple event that Kinetic Sieve Lab shows as trajectories meeting on the number line."
+        "When several prime cycles return to zero together, the event is the circular phase representation of the shared multiple meetings shown in Kinetic Sieve Lab."
     )
 
-st.subheader("1. Inspect one integer moment")
+st.subheader("1. Inspect one integer state")
 control_left, control_right = st.columns([1, 1])
 
 with control_left:
@@ -62,8 +62,8 @@ with control_left:
             value=30,
             step=1,
             help=(
-                "Move through integer moments and watch selected prime cycles change phase. "
-                "The current V1 ceiling is one trillion; it is a practical interface limit rather than a mathematical boundary."
+                "Select an integer and inspect the modular phase of the displayed prime cycles. "
+                "The current ceiling of one trillion is a practical interface limit rather than a mathematical boundary."
             ),
         )
     )
@@ -71,12 +71,12 @@ with control_left:
 with control_right:
     clock_count = int(
         st.slider(
-            "Base prime clocks to display",
+            "Base prime cycles to display",
             min_value=3,
             max_value=12,
             value=8,
             help=(
-                "Shows the first N prime cycles. Any additional phase-zero divisor clocks are added automatically so the visualization cannot hide the reason a number is composite."
+                "Displays the first N prime cycles. Any additional phase zero divisor cycles are added automatically so the visualization includes the factors responsible for a composite classification."
             ),
         )
     )
@@ -97,11 +97,11 @@ metric_one, metric_two, metric_three, metric_four = st.columns(4)
 metric_one.metric("Current integer", f"{current_integer:,}")
 metric_two.metric("Classification", "Confirmed prime" if prime_now else "Composite")
 metric_three.metric(
-    "Phase-zero divisor clocks",
+    "Phase zero divisor cycles",
     "None" if not relevant_zeros else " · ".join(str(prime) for prime in relevant_zeros),
 )
 metric_four.metric(
-    "Prime cycles needed for proof",
+    "Prime cycles required for proof",
     f"{len(proof_primes):,} through √n = {proof_limit:,}",
 )
 
@@ -119,16 +119,16 @@ else:
 
 if extra_divisor_primes:
     st.info(
-        "The base clock selection would have hidden part of the explanation, so Prime Lab automatically added divisor clock"
+        "Additional divisor cycle"
         + ("s " if len(extra_divisor_primes) != 1 else " ")
         + ", ".join(str(prime) for prime in extra_divisor_primes)
-        + "."
+        + " were added automatically because they fall outside the selected base cycle set."
     )
 
 st.caption(
     f"The clock panel visualizes {len(display_primes)} cycle{'s' if len(display_primes) != 1 else ''}. "
-    f"The primality proof itself checks all {len(proof_primes):,} prime cycles through √n. "
-    "A teal clock is part of the phase picture; amber emphasis is reserved for a clock that is actually at phase zero and divides n."
+    f"The primality proof checks all {len(proof_primes):,} prime cycles through √n. "
+    "Teal indicates a displayed prime cycle; amber emphasis is reserved for a cycle that is at phase zero and divides n."
 )
 
 st.plotly_chart(build_prime_clock_figure(states), width="stretch")
@@ -136,7 +136,7 @@ st.plotly_chart(build_prime_clock_figure(states), width="stretch")
 phase_rows = []
 for state in states:
     if state.is_relevant_divisor:
-        role = "Phase-zero divisor"
+        role = "Phase zero divisor"
         now = "ZERO"
     elif state.is_relevant_test_prime:
         role = "In √n proof"
@@ -157,10 +157,10 @@ for state in states:
         }
     )
 
-with st.expander("Read the clocks as a schedule", expanded=True):
+with st.expander("Prime cycle schedule", expanded=True):
     st.write(
-        "Each row says where one prime cycle is now and when it will next return to zero. "
-        "This is the circular version of the landing schedule in Kinetic Sieve Lab."
+        "Each row records the current phase position of one displayed prime cycle and the next integer at which that cycle returns to zero. "
+        "This is the circular phase equivalent of the landing schedule in Kinetic Sieve Lab."
     )
     st.dataframe(pd.DataFrame(phase_rows), width="stretch", hide_index=True)
     st.code(
@@ -172,15 +172,15 @@ with st.expander("Read the clocks as a schedule", expanded=True):
 
 if selected_sync:
     st.caption(
-        "Displayed clocks currently at phase zero: "
+        "Displayed cycles currently at phase zero: "
         + ", ".join(str(prime) for prime in selected_sync)
-        + ". Prime Lab distinguishes these exact zero crossings from clocks that are merely part of the √n proof range."
+        + ". Exact zero crossings are distinct from prime cycles that are merely within the √n proof range."
     )
 
-st.subheader("2. Project two prime cycles into phase space")
+st.subheader("2. Two cycle phase projection")
 st.write(
-    "A pair of prime clocks can be represented as one point in a square. The horizontal coordinate is the phase of one prime cycle and the vertical coordinate is the phase of the other. "
-    "As n advances, the point visits a sequence of joint states before repeating."
+    "Two prime cycles can be represented as one point in a unit square. The horizontal coordinate is the normalized phase of one cycle and the vertical coordinate is the normalized phase of the other. "
+    "As n advances, the point visits a finite sequence of joint states before repeating."
 )
 
 pair_left, pair_right = st.columns(2)
@@ -207,7 +207,7 @@ joint_points = joint_phase_cycle(first_prime, second_prime)
 joint_period = first_prime * second_prime
 st.caption(
     f"Because {first_prime} and {second_prime} are distinct primes, their joint phase state repeats every {joint_period} integers. "
-    "The shared zero state is their common-multiple synchronization point. The two-cycle projection is intentionally limited to the base clocks so its full repeating cycle stays lightweight."
+    "The shared zero state is their common multiple synchronization point. The projection is limited to base cycles so the entire repeating period remains lightweight."
 )
 st.plotly_chart(
     build_joint_phase_figure(
@@ -219,7 +219,7 @@ st.plotly_chart(
     width="stretch",
 )
 
-st.subheader("3. Watch the phase rhythms around this integer")
+st.subheader("3. Local phase rhythms")
 trace_radius = int(
     st.slider(
         "Integers on each side",
@@ -242,22 +242,22 @@ st.plotly_chart(
     width="stretch",
 )
 st.caption(
-    "Every trace is a normalized modular sawtooth. A return to phase 0 is an exact multiple of that prime. "
-    "When several traces reach zero at the same integer, the corresponding prime cycles synchronize."
+    "Each trace is a normalized modular sawtooth. A return to phase zero is an exact multiple of that prime. "
+    "Simultaneous returns to zero represent synchronization at a shared multiple."
 )
 
-with st.expander("Questions to experiment with", expanded=False):
+with st.expander("Suggested experiments", expanded=False):
     st.markdown(
         """
-1. Compare a prime integer with the composites immediately before and after it. Which relevant clocks are closest to phase zero?
-2. Move to 30, 60, 90, and 210. How do multi-prime synchronization events appear in the clocks and in the two-cycle projection?
-3. Compare different pairs of prime cycles. How does the joint repetition period change?
-4. Look at prime gaps as intervals where at least one relevant prime cycle reaches zero at every intermediate integer.
-5. Record phase signatures around primes and ask whether any apparent similarity survives comparison with ordinary sieve structure.
+1. Compare a prime integer with the composites immediately before and after it. Record which relevant cycles are closest to phase zero.
+2. Compare n = 30, 60, 90, and 210 to examine multi prime synchronization events in both the clocks and the two cycle projection.
+3. Compare different pairs of prime cycles and record how the joint repetition period changes.
+4. Interpret prime gaps as intervals in which at least one relevant prime cycle reaches phase zero at every intermediate integer.
+5. Compare phase signatures around distant primes and test whether apparent similarity persists after controlling for ordinary sieve structure.
         """
     )
 
 st.warning(
-    "Prime Phase Space is a different coordinate system for exact modular arithmetic, not evidence that circles or π cause prime numbers. "
-    "The purpose is to expose periodic structure in a form that can be measured and compared."
+    "Prime Phase Space is a coordinate representation of exact modular arithmetic. It does not imply that circles or π cause the distribution of primes. "
+    "Its purpose is to expose periodic structure in a form that can be measured, compared, and tested."
 )
