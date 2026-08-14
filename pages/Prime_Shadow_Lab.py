@@ -77,7 +77,8 @@ with st.expander(
 with st.container(border=True):
     st.subheader("1. Choose the experiment")
     st.caption(
-        "The target prime must have a complete shadow window inside the selected range so comparisons do not contain boundary artifacts."
+        "For similarity work, Prime Shadow Lab uses only center primes whose entire shadow window lies inside both the selected range and the mathematically proven region. "
+        "That prevents boundary effects and unresolved candidates from creating fake differences between fingerprints."
     )
 
     col_start, col_end, col_filter, col_radius = st.columns(
@@ -190,9 +191,17 @@ confirmed_values = values[
     copy=False,
 )
 
+proven_window_end = min(
+    range_end,
+    frontier - 1,
+)
+
 eligible_mask = (
     (confirmed_values - radius >= range_start)
-    & (confirmed_values + radius <= range_end)
+    & (
+        confirmed_values + radius
+        <= proven_window_end
+    )
 )
 
 eligible_targets = confirmed_values[
@@ -202,14 +211,14 @@ eligible_targets = confirmed_values[
 
 if len(eligible_targets) == 0:
     st.warning(
-        "There are no confirmed primes with a complete shadow window at this filter stage. Apply more filters, reduce the radius, or widen the range."
+        "There are no confirmed primes with a complete fully proven shadow window at this filter stage. Apply more filters, reduce the radius, or widen the range."
     )
     st.stop()
 
 
 midpoint = (
     range_start
-    + range_end
+    + proven_window_end
 ) / 2
 
 initial_target_index = int(
@@ -238,18 +247,18 @@ with control_left:
             ],
             index=initial_target_index,
             help=(
-                "Only confirmed primes with a complete window on both sides are offered here."
+                "Only confirmed primes whose complete shadow window is already mathematically resolved are offered here."
             ),
         )
     )
 
 with control_right:
     st.metric(
-        "Current proof frontier",
-        f"n < {frontier:,}",
+        "Fully proven region available for shadows",
+        f"{range_start:,} to {proven_window_end:,}",
         border=True,
         help=(
-            "Surviving candidates below this frontier are mathematically confirmed prime."
+            f"The current proof frontier is n < {frontier:,}. Shadow comparison stays entirely below it."
         ),
     )
 
@@ -366,7 +375,7 @@ with st.container(border=True):
 
     st.caption(
         "The center line is the target prime. For composite cells, the color identifies the smallest applied prime divisor that eliminated that integer. "
-        "Confirmed prime neighbors and unresolved survivors are shown as different states rather than being merged."
+        "Confirmed prime neighbors are shown as their own state."
     )
 
     higher_shadow_share = (
