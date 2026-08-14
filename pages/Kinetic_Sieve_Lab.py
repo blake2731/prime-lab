@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 
 from ui.kinetic_sieve import build_kinetic_sieve_html
 
@@ -43,10 +42,10 @@ with st.expander(
     )
 
 
-components.html(
+st.iframe(
     build_kinetic_sieve_html(),
+    width="stretch",
     height=655,
-    scrolling=False,
 )
 
 st.caption(
