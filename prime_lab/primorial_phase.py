@@ -52,7 +52,9 @@ class DensityConvergencePoint:
     mertens_estimate: float
     proof_cutoff_prime: int
     prime_density_minus_pnt: float
+    prime_density_relative_pnt_error: float
     wheel_minus_prime_density: float
+    wheel_relative_prime_excess: float
     wheel_to_pnt_ratio: float
     wheel_ratio_error: float
     mertens_absolute_error: float
@@ -244,7 +246,10 @@ def density_convergence_sweep(
     if maximum_exponent > 7:
         raise ValueError("maximum_exponent must not exceed 7 in the interactive V1 sweep")
 
-    checkpoints = tuple(10**exponent for exponent in range(minimum_exponent, maximum_exponent + 1))
+    checkpoints = tuple(
+        10**exponent
+        for exponent in range(minimum_exponent, maximum_exponent + 1)
+    )
     sieve = _prime_sieve(checkpoints[-1])
     flags = memoryview(sieve)
     expected_ratio = 2.0 * exp(-EULER_MASCHERONI)
@@ -264,6 +269,9 @@ def density_convergence_sweep(
             wheel_survivor_fraction,
             mertens_estimate,
         ) = _proof_cutoff_statistics(maximum_integer)
+
+        prime_density_minus_pnt = empirical_density - pnt_density
+        wheel_minus_prime_density = wheel_survivor_fraction - empirical_density
         wheel_to_pnt_ratio = wheel_survivor_fraction / pnt_density
         mertens_absolute_error = wheel_survivor_fraction - mertens_estimate
 
@@ -277,8 +285,10 @@ def density_convergence_sweep(
                 wheel_survivor_fraction=wheel_survivor_fraction,
                 mertens_estimate=mertens_estimate,
                 proof_cutoff_prime=proof_cutoff_prime,
-                prime_density_minus_pnt=empirical_density - pnt_density,
-                wheel_minus_prime_density=wheel_survivor_fraction - empirical_density,
+                prime_density_minus_pnt=prime_density_minus_pnt,
+                prime_density_relative_pnt_error=prime_density_minus_pnt / pnt_density,
+                wheel_minus_prime_density=wheel_minus_prime_density,
+                wheel_relative_prime_excess=wheel_minus_prime_density / empirical_density,
                 wheel_to_pnt_ratio=wheel_to_pnt_ratio,
                 wheel_ratio_error=wheel_to_pnt_ratio - expected_ratio,
                 mertens_absolute_error=mertens_absolute_error,
