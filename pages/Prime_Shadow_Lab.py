@@ -1,10 +1,8 @@
 import numpy as np
+import pandas as pd
 import streamlit as st
 
-from prime_lab.certification import (
-    certification_frontier,
-    confirmed_prime_mask,
-)
+from prime_lab.certification import certification_frontier, confirmed_prime_mask
 from prime_lab.filters import filter_candidates
 from prime_lab.prime_shadows import (
     CONFIRMED_CODE,
@@ -46,16 +44,12 @@ def shadow_label(code: int) -> str:
 
     if code == TARGET_CODE:
         return "CENTER PRIME"
-
     if code == CONFIRMED_CODE:
         return "PRIME"
-
     if code == UNRESOLVED_CODE:
         return "UNRESOLVED"
-
     if code == NON_CANDIDATE_CODE:
         return "NOT A CANDIDATE"
-
     return f"PRIME {code}"
 
 
@@ -64,13 +58,10 @@ def shadow_explanation(code: int) -> str:
 
     if code == TARGET_CODE:
         return "The center number is a confirmed prime and survives every applied filter."
-
     if code == CONFIRMED_CODE:
         return "This neighboring number is also mathematically confirmed prime."
-
     if code == UNRESOLVED_CODE:
         return "No applied filter has eliminated this number yet, but the current filter depth is not enough to prove it prime."
-
     if code == NON_CANDIDATE_CODE:
         return "This number is below 2 and therefore is not a prime candidate."
 
@@ -86,7 +77,6 @@ st.set_page_config(
     layout="wide",
 )
 
-
 st.title("Prime Shadow Lab")
 st.caption(
     "Analyze the local divisibility environment around a confirmed prime and compare those environments experimentally."
@@ -98,30 +88,20 @@ st.info(
     "The center remains a confirmed prime, producing a local sieve fingerprint that can be measured and compared."
 )
 
-with st.expander(
-    "Concept and interpretation",
-    expanded=True,
-):
+with st.expander("Concept and interpretation", expanded=True):
     st.write(
-        "Consider the neighborhood around prime 53. Instead of marking only which values are prime, "
-        "record the first prime filter that eliminates each composite candidate."
+        "Consider the neighborhood around prime 53. Instead of marking only which values are prime, record the first prime filter that eliminates each composite candidate."
     )
-
     st.code(
         "Integer                  49   50   51   52   [53]   54   55   56   57   58   59\n"
         "First eliminating prime   7    2    3    2   PRIME    2    5    2    3    2   PRIME"
     )
-
     st.write(
-        "Here, 49 is first resolved as composite by 7, 50 by 2, 51 by 3, and 52 by 2. "
-        "The number 53 remains prime, and 59 is another confirmed prime in the same neighborhood."
+        "Here, 49 is first resolved as composite by 7, 50 by 2, 51 by 3, and 52 by 2. The number 53 remains prime, and 59 is another confirmed prime in the same neighborhood."
     )
-
     st.write(
-        "The shadow therefore represents a prime together with the divisibility structure surrounding it. "
-        "Comparisons between distant shadows can test whether similar local environments recur near prime gaps, twin primes, or other prime configurations."
+        "The shadow therefore represents a prime together with the divisibility structure surrounding it. Comparisons between distant shadows can test whether similar local environments recur near prime gaps, twin primes, or other prime configurations."
     )
-
     st.caption(
         "Interpretation goal: read a shadow as a record of which prime divisors first remove neighboring integers from prime candidacy."
     )
@@ -130,13 +110,10 @@ with st.expander(
 with st.container(border=True):
     st.subheader("1. Configure the experiment")
     st.caption(
-        "Choose a number range, a filter depth, and how far to inspect on each side of the center prime. "
-        "Similarity comparisons use only windows that are completely inside the mathematically proven region."
+        "Choose a number range, a filter depth, and how far to inspect on each side of the center prime. Similarity comparisons use only windows completely inside the mathematically proven region."
     )
 
-    col_start, col_end, col_filter, col_radius = st.columns(
-        [1, 1, 1.3, 1]
-    )
+    col_start, col_end, col_filter, col_radius = st.columns([1, 1, 1.3, 1])
 
     with col_start:
         range_start = st.number_input(
@@ -163,8 +140,7 @@ with st.container(border=True):
             index=len(FILTER_PRIMES) - 1,
             format_func=lambda value: f"Prime {value}",
             help=(
-                "Choosing Prime 23 applies every prime filter from 2 through 23 in sequence. "
-                "A deeper filter sequence confirms a larger part of the range."
+                "Choosing Prime 23 applies every prime filter from 2 through 23 in sequence. A deeper filter sequence confirms a larger part of the range."
             ),
         )
 
@@ -176,12 +152,9 @@ with st.container(border=True):
                 max_value=60,
                 value=24,
                 step=1,
-                help=(
-                    "Radius 24 examines 24 integers before and 24 integers after the center prime."
-                ),
+                help="Radius 24 examines 24 integers before and 24 integers after the center prime.",
             )
         )
-
 
 if range_end < range_start:
     st.error("Range end must be greater than or equal to range start.")
@@ -209,141 +182,87 @@ values, survives, _ = filter_candidates(
     range_end,
     applied_primes,
 )
-
-confirmed = confirmed_prime_mask(
-    values,
-    survives,
-    applied_primes,
-)
-
+confirmed = confirmed_prime_mask(values, survives, applied_primes)
 frontier = certification_frontier(applied_primes)
-
-confirmed_values = values[confirmed].astype(
-    np.int64,
-    copy=False,
-)
-
-proven_window_end = min(
-    range_end,
-    frontier - 1,
-)
+confirmed_values = values[confirmed].astype(np.int64, copy=False)
+proven_window_end = min(range_end, frontier - 1)
 
 eligible_mask = (
     (confirmed_values - radius >= range_start)
     & (confirmed_values + radius <= proven_window_end)
 )
-
 eligible_targets = confirmed_values[eligible_mask]
 
 if len(eligible_targets) == 0:
     st.warning(
-        "There are no confirmed primes with a complete proven shadow window at this filter stage. "
-        "Apply more filters, reduce the radius, or widen the range."
+        "There are no confirmed primes with a complete proven shadow window at this filter stage. Apply more filters, reduce the radius, or widen the range."
     )
     st.stop()
 
 midpoint = (range_start + proven_window_end) / 2
-initial_target_index = int(
-    np.argmin(
-        np.abs(eligible_targets - midpoint)
-    )
-)
+initial_target_index = int(np.argmin(np.abs(eligible_targets - midpoint)))
 
 control_left, control_right = st.columns([1, 2])
-
 with control_left:
     target_prime = int(
         st.selectbox(
             "Center prime",
             [int(value) for value in eligible_targets],
             index=initial_target_index,
-            help=(
-                "Only confirmed primes whose entire shadow window is already proven are available for comparison."
-            ),
+            help="Only confirmed primes whose entire shadow window is already proven are available for comparison.",
         )
     )
-
 with control_right:
     st.metric(
         "Proven region available for complete shadows",
         f"{range_start:,} to {proven_window_end:,}",
         border=True,
-        help=(
-            f"The current proof frontier is n < {frontier:,}. Complete shadow windows are kept below that boundary."
-        ),
+        help=f"The current proof frontier is n < {frontier:,}. Complete shadow windows are kept below that boundary.",
     )
 
 
-target_shadow = build_prime_shadow(
-    target_prime,
-    radius,
-    applied_primes,
-)
-
+target_shadow = build_prime_shadow(target_prime, radius, applied_primes)
 target_counts = shadow_state_counts(target_shadow)
 
 confirmed_list = [int(value) for value in confirmed_values]
 target_confirmed_index = confirmed_list.index(target_prime)
-
 previous_prime = (
     confirmed_list[target_confirmed_index - 1]
     if target_confirmed_index > 0
     else None
 )
-
 next_prime = (
     confirmed_list[target_confirmed_index + 1]
     if target_confirmed_index + 1 < len(confirmed_list)
     else None
 )
-
-left_gap = (
-    target_prime - previous_prime
-    if previous_prime is not None
-    else None
-)
-
-right_gap = (
-    next_prime - target_prime
-    if next_prime is not None
-    else None
-)
+left_gap = target_prime - previous_prime if previous_prime is not None else None
+right_gap = next_prime - target_prime if next_prime is not None else None
 
 
 with st.container(border=True):
     st.subheader("2. Read one prime shadow")
-
     st.write(
-        f"The shadow below is centered on confirmed prime **{target_prime:,}** and examines offsets from **-{radius}** through **+{radius}**. "
-        "At every composite position, the shadow records the first prime filter that proves that neighboring integer composite."
+        f"The shadow below is centered on confirmed prime **{target_prime:,}** and examines offsets from **-{radius}** through **+{radius}**. At every composite position, the shadow records the first prime filter that proves that neighboring integer composite."
     )
 
     metric_1, metric_2, metric_3, metric_4, metric_5 = st.columns(5)
-
-    metric_1.metric(
-        "Numbers in the shadow",
-        f"{2 * radius + 1:,}",
-        border=True,
-    )
-
+    metric_1.metric("Numbers in the shadow", f"{2 * radius + 1:,}", border=True)
     metric_2.metric(
         "Composite neighbors resolved",
         f"{target_counts['filtered_composites']:,}",
         border=True,
     )
-
     metric_3.metric(
         "Confirmed prime neighbors",
         f"{target_counts['confirmed_neighbors']:,}",
         border=True,
     )
-
     metric_4.metric(
         "Gap to previous prime",
         f"{left_gap:,}" if left_gap is not None else "Boundary",
         border=True,
     )
-
     metric_5.metric(
         "Gap to next prime",
         f"{right_gap:,}" if right_gap is not None else "Boundary",
@@ -352,13 +271,9 @@ with st.container(border=True):
 
     center_index = target_shadow.offsets.index(0)
     example_start = max(0, center_index - 4)
-    example_end = min(
-        len(target_shadow.offsets),
-        center_index + 7,
-    )
+    example_end = min(len(target_shadow.offsets), center_index + 7)
 
     example_rows = []
-
     for offset, value, code in zip(
         target_shadow.offsets[example_start:example_end],
         target_shadow.values[example_start:example_end],
@@ -375,16 +290,9 @@ with st.container(border=True):
         )
 
     st.markdown("**Example interpretation before the full visualization**")
-
-    st.dataframe(
-        example_rows,
-        width="stretch",
-        hide_index=True,
-    )
-
+    st.dataframe(example_rows, width="stretch", hide_index=True)
     st.caption(
-        "If the State column says PRIME 7, the neighboring integer is composite and 7 is the first applied prime filter that proves it. "
-        "PRIME means the neighboring integer is itself confirmed prime."
+        "If the State column says PRIME 7, the neighboring integer is composite and 7 is the first applied prime filter that proves it. PRIME means the neighboring integer is itself confirmed prime."
     )
 
     st.plotly_chart(
@@ -401,25 +309,50 @@ with st.container(border=True):
         target_counts["higher_prime_shadows"]
         / max(target_counts["filtered_composites"], 1)
     )
-
     st.write(
         f"Within this window, **{target_counts['higher_prime_shadows']:,}** composite neighbors are not resolved by 2, 3, or 5 and require a larger prime filter. "
         f"That is **{higher_shadow_share:.1%}** of the resolved composite neighbors. These positions reduce the dominance of the strongest small prime cycles when local structure is compared."
     )
 
+    shadow_rows = [
+        {
+            "Center prime": target_prime,
+            "Radius": radius,
+            "Offset": offset,
+            "Integer": value,
+            "State code": code,
+            "State": shadow_label(code),
+            "Interpretation": shadow_explanation(code),
+        }
+        for offset, value, code in zip(
+            target_shadow.offsets,
+            target_shadow.values,
+            target_shadow.state_codes,
+            strict=True,
+        )
+    ]
+    shadow_frame = pd.DataFrame(shadow_rows)
+    shadow_table_col, shadow_export_col = st.columns([4, 1])
+    with shadow_table_col:
+        with st.expander("Exact shadow state table", expanded=False):
+            st.dataframe(shadow_frame, width="stretch", hide_index=True)
+    with shadow_export_col:
+        st.download_button(
+            "Download shadow CSV",
+            data=shadow_frame.to_csv(index=False).encode("utf-8"),
+            file_name=f"prime_shadow_{target_prime}_radius_{radius}.csv",
+            mime="text/csv",
+            width="stretch",
+        )
+
 
 with st.container(border=True):
     st.subheader("3. Compare local environments")
-
     st.write(
-        "The comparison measures whether distant confirmed primes have similar divisibility environments at the same relative offsets. "
-        "The current method uses exact state agreement position by position."
+        "The comparison measures whether distant confirmed primes have similar divisibility environments at the same relative offsets. The current method uses exact state agreement position by position."
     )
-
     st.caption(
-        "Repeating divisibility by 2, 3, and 5 can dominate a raw comparison. "
-        "The exploratory deeper score therefore ignores positions where either shadow is first resolved by 2, 3, or 5. "
-        "Agreement must always be interpreted together with the number of positions that remain available for comparison."
+        "Repeating divisibility by 2, 3, and 5 can dominate a raw comparison. The exploratory deeper score therefore ignores positions where either shadow is first resolved by 2, 3, or 5. Agreement must always be interpreted together with the number of positions that remain available for comparison."
     )
 
     matches = find_shadow_matches(
@@ -434,7 +367,6 @@ with st.container(border=True):
         st.write(
             "There are not enough other confirmed primes with complete windows to perform a similarity search."
         )
-
     else:
         match_count = int(
             st.select_slider(
@@ -446,74 +378,55 @@ with st.container(border=True):
 
         top_matches = matches[:match_count]
         strongest_match = top_matches[0]
-
         same_mod_30 = sum(
             match.residue_mod_30 == target_prime % 30
             for match in top_matches
         )
-
         total_noncenter_positions = 2 * radius
-        deep_coverage = (
-            strongest_match.deep_positions_compared
-            / total_noncenter_positions
-        )
+        deep_coverage = strongest_match.deep_positions_compared / total_noncenter_positions
 
         similarity_metric_1, similarity_metric_2, similarity_metric_3, similarity_metric_4 = st.columns(4)
-
         similarity_metric_1.metric(
             "Closest exploratory match",
             f"Prime {strongest_match.prime:,}",
             border=True,
         )
-
         similarity_metric_2.metric(
             "Agreement on compared positions",
             f"{strongest_match.deep_similarity:.1%}",
             border=True,
         )
-
         similarity_metric_3.metric(
             "Positions compared",
             f"{strongest_match.deep_positions_compared} of {total_noncenter_positions}",
             border=True,
         )
-
         similarity_metric_4.metric(
             "Comparison coverage",
             f"{deep_coverage:.1%}",
             border=True,
-            help=(
-                "Coverage is the fraction of noncenter positions still available after positions dominated by 2, 3, and 5 are removed."
-            ),
+            help="Coverage is the fraction of noncenter positions still available after positions dominated by 2, 3, and 5 are removed.",
         )
 
         if deep_coverage < 0.25:
             st.warning(
-                "This similarity result is based on relatively few positions after controlling for 2, 3, and 5. "
-                "Treat the percentage as preliminary rather than as strong evidence of a meaningful relationship."
+                "This similarity result is based on relatively few positions after controlling for 2, 3, and 5. Treat the percentage as preliminary rather than as strong evidence of a meaningful relationship."
             )
         else:
             st.info(
-                f"Among the top {match_count} exploratory matches, {same_mod_30} share the same modulo 30 residue class as the center prime. "
-                "This indicates how much familiar wheel structure may still contribute to the result."
+                f"Among the top {match_count} exploratory matches, {same_mod_30} share the same modulo 30 residue class as the center prime. This indicates how much familiar wheel structure may still contribute to the result."
             )
 
         comparison_shadows = [target_shadow]
         comparison_shadows.extend(
-            build_prime_shadow(
-                match.prime,
-                radius,
-                applied_primes,
-            )
+            build_prime_shadow(match.prime, radius, applied_primes)
             for match in top_matches
         )
 
         st.plotly_chart(
             build_shadow_heatmap(
                 tuple(comparison_shadows),
-                title=(
-                    f"Prime {target_prime:,} and its closest exploratory shadow matches"
-                ),
+                title=f"Prime {target_prime:,} and its closest exploratory shadow matches",
             ),
             width="stretch",
             config={"displaylogo": False},
@@ -522,44 +435,51 @@ with st.container(border=True):
 
         match_rows = [
             {
-                "Prime": match.prime,
+                "Center prime": target_prime,
+                "Matched prime": match.prime,
                 "Distance from center": match.distance,
                 "Prime mod 30": match.residue_mod_30,
-                "Full shadow agreement": f"{match.full_similarity:.1%}",
-                "Agreement after controlling for 2, 3, 5": f"{match.deep_similarity:.1%}",
+                "Full shadow agreement": match.full_similarity,
+                "Controlled agreement": match.deep_similarity,
                 "Positions compared": match.deep_positions_compared,
-                "Coverage": (
-                    f"{match.deep_positions_compared / total_noncenter_positions:.1%}"
-                ),
+                "Coverage": match.deep_positions_compared / total_noncenter_positions,
             }
             for match in top_matches
         ]
+        match_frame = pd.DataFrame(match_rows)
 
-        with st.expander(
-            "Evidence behind the similarity scores",
-            expanded=False,
-        ):
-            st.dataframe(
-                match_rows,
+        match_table_col, match_export_col = st.columns([4, 1])
+        with match_table_col:
+            with st.expander("Evidence behind the similarity scores", expanded=False):
+                st.dataframe(
+                    match_frame,
+                    width="stretch",
+                    hide_index=True,
+                    column_config={
+                        "Full shadow agreement": st.column_config.NumberColumn(format="%.4f"),
+                        "Controlled agreement": st.column_config.NumberColumn(format="%.4f"),
+                        "Coverage": st.column_config.NumberColumn(format="%.4f"),
+                    },
+                )
+        with match_export_col:
+            st.download_button(
+                "Download matches CSV",
+                data=match_frame.to_csv(index=False).encode("utf-8"),
+                file_name=f"prime_shadow_matches_{target_prime}_radius_{radius}.csv",
+                mime="text/csv",
                 width="stretch",
-                hide_index=True,
             )
 
         st.caption(
-            "Similarity is an exploratory observation, not evidence of a new law by itself. "
-            "A useful pattern should persist across larger independent ranges, different shadow radii, and stronger controls for known modular structure."
+            "Similarity is an exploratory observation, not evidence of a new law by itself. A useful pattern should persist across larger independent ranges, different shadow radii, and stronger controls for known modular structure."
         )
 
 
 with st.container(border=True):
     st.subheader("4. Further investigation")
-
     st.write(
-        "Prime Shadow Lab serves both explanatory and experimental purposes. "
-        "The sieve process is made explicit by classifying nearby composites according to the earliest prime filter that resolves them. "
-        "The resulting local fingerprints can then support controlled tests of recurrence around different primes."
+        "Prime Shadow Lab serves both explanatory and experimental purposes. The sieve process is made explicit by classifying nearby composites according to the earliest prime filter that resolves them. The resulting local fingerprints can then support controlled tests of recurrence around different primes."
     )
-
     st.markdown(
         """
 **Suggested research questions**
@@ -570,7 +490,21 @@ with st.container(border=True):
 4. Does the same effect reproduce in a different number range?
         """
     )
-
     st.caption(
         "Each experiment should remain understandable enough to inspect directly while retaining explicit mathematical definitions and reproducible controls."
+    )
+
+with st.expander("Methods and limits", expanded=False):
+    st.markdown(
+        """
+**Complete proven windows.** Target and comparison shadows are restricted to windows lying entirely below the current certification frontier.
+
+**Raw agreement.** Full shadow agreement compares exact state codes at corresponding offsets and therefore includes strong periodic effects from small primes.
+
+**Controlled agreement.** The current deeper score removes positions dominated by first eliminators 2, 3, and 5. This is an exploratory control, not a fully wheel normalized similarity statistic.
+
+**Coverage requirement.** A high controlled agreement based on very few retained positions is weak evidence. Coverage is always reported beside the score.
+
+**Reproducibility.** Exact target states and the displayed comparison records can be exported as CSV for independent analysis.
+        """
     )
