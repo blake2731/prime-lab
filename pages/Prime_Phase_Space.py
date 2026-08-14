@@ -149,25 +149,58 @@ for state in states:
         {
             "Prime cycle": state.prime,
             "State now": now,
+            "Remainder": state.remainder,
             "Next zero": state.next_zero,
             "Steps to next zero": state.steps_to_next_zero,
-            "Normalized phase": round(state.phase_fraction, 4),
-            "Angle": f"{state.angle_degrees:.1f}°",
+            "Normalized phase": state.phase_fraction,
+            "Angle degrees": state.angle_degrees,
             "Role": role,
         }
     )
 
-with st.expander("Prime cycle schedule", expanded=True):
-    st.write(
-        "Each row records the current phase position of one displayed prime cycle and the next integer at which that cycle returns to zero. "
-        "This is the circular phase equivalent of the landing schedule in Kinetic Sieve Lab."
-    )
-    st.dataframe(pd.DataFrame(phase_rows), width="stretch", hide_index=True)
-    st.code(
-        "Phase signature: ("
-        + ", ".join(f"{state.prime}:{state.remainder}" for state in states)
-        + ")",
-        language=None,
+phase_frame = pd.DataFrame(phase_rows)
+future_states = [state for state in states if state.steps_to_next_zero > 0]
+nearest_future = min(future_states, key=lambda state: (state.steps_to_next_zero, state.prime))
+
+schedule_metric_1, schedule_metric_2 = st.columns(2)
+schedule_metric_1.metric(
+    "Nearest displayed zero crossing",
+    f"Prime {nearest_future.prime} in {nearest_future.steps_to_next_zero} step{'s' if nearest_future.steps_to_next_zero != 1 else ''}",
+)
+schedule_metric_2.metric(
+    "Phase signature width",
+    f"{len(display_primes)} displayed prime cycles",
+)
+
+schedule_col, export_col = st.columns([4, 1])
+with schedule_col:
+    with st.expander("Prime cycle schedule", expanded=True):
+        st.write(
+            "Each row records the current phase position of one displayed prime cycle and the next integer at which that cycle returns to zero. "
+            "This is the circular phase equivalent of the landing schedule in Kinetic Sieve Lab."
+        )
+        st.dataframe(
+            phase_frame,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "Normalized phase": st.column_config.NumberColumn(format="%.6f"),
+                "Angle degrees": st.column_config.NumberColumn(format="%.3f"),
+            },
+        )
+        st.code(
+            "Phase signature: ("
+            + ", ".join(f"{state.prime}:{state.remainder}" for state in states)
+            + ")",
+            language=None,
+        )
+with export_col:
+    st.download_button(
+        "Download phase CSV",
+        data=phase_frame.to_csv(index=False).encode("utf-8"),
+        file_name=f"prime_phase_{current_integer}.csv",
+        mime="text/csv",
+        width="stretch",
     )
 
 if selected_sync:
@@ -242,8 +275,7 @@ st.plotly_chart(
     width="stretch",
 )
 st.caption(
-    "Each trace is a normalized modular sawtooth. A return to phase zero is an exact multiple of that prime. "
-    "Simultaneous returns to zero represent synchronization at a shared multiple."
+    "Each trace is a normalized modular sawtooth. A return to phase zero is an exact multiple of that prime. Simultaneous returns to zero represent synchronization at a shared multiple."
 )
 
 with st.expander("Suggested experiments", expanded=False):
@@ -254,6 +286,21 @@ with st.expander("Suggested experiments", expanded=False):
 3. Compare different pairs of prime cycles and record how the joint repetition period changes.
 4. Interpret prime gaps as intervals in which at least one relevant prime cycle reaches phase zero at every intermediate integer.
 5. Compare phase signatures around distant primes and test whether apparent similarity persists after controlling for ordinary sieve structure.
+        """
+    )
+
+with st.expander("Methods and limits", expanded=False):
+    st.markdown(
+        f"""
+**Exact modular state.** Every displayed phase is computed directly from `n mod p`; no visual interpolation is used to classify divisibility.
+
+**Proof versus display.** The clock panel intentionally shows only a small base set plus any additional divisor cycles needed to explain a composite. Primality classification still checks every prime through √n.
+
+**Two cycle projection.** A pair of distinct prime cycles repeats after their product because the two moduli are coprime.
+
+**Interface ceiling.** Integer input is capped at {MAX_INTEGER:,}. This is an engineering boundary for the current interactive implementation, not a mathematical limit of phase representation.
+
+**Interpretation.** Phase space is a coordinate system for modular arithmetic. Similar looking phase signatures require quantitative comparison and controls for ordinary congruence structure before they can support a new claim.
         """
     )
 
