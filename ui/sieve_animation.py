@@ -152,7 +152,7 @@ def build_sieve_animation(
         final_values,
         final_survives,
         final_eliminated_by,
-        None,
+        final_prime,
         final_confirmed,
         grid_width=grid_width,
     )
@@ -283,11 +283,6 @@ def build_sieve_animation(
         resolved_confirmed = previous_confirmed.copy()
 
         for phase_index in range(phase_count):
-            current_elimination = np.zeros(
-                stage_values.shape,
-                dtype=bool,
-            )
-
             elimination_batch = elimination_batches[
                 phase_index
             ]
@@ -295,10 +290,6 @@ def build_sieve_animation(
             confirmation_batch = confirmation_batches[
                 phase_index
             ]
-
-            current_elimination[
-                elimination_batch
-            ] = True
 
             resolved_eliminated[
                 elimination_batch
@@ -324,7 +315,7 @@ def build_sieve_animation(
                 phase_eliminated_by,
                 prime,
                 resolved_confirmed,
-                current_elimination,
+                resolved_eliminated,
                 grid_width=grid_width,
             )
 
@@ -365,7 +356,7 @@ def build_sieve_animation(
             stage_values,
             stage_survives,
             stage_eliminated_by,
-            None,
+            prime,
             stage_confirmed,
             grid_width=grid_width,
         )
