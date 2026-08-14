@@ -2,7 +2,11 @@ from math import cos, pi, sin
 
 import plotly.graph_objects as go
 
-from prime_lab.primorial_phase import PrimeDensityObservation, PrimorialStage
+from prime_lab.primorial_phase import (
+    DensityConvergencePoint,
+    PrimeDensityObservation,
+    PrimorialStage,
+)
 
 
 CONFIRMED_PRIME = "#008A7C"
@@ -181,5 +185,95 @@ def build_density_comparison_figure(observation: PrimeDensityObservation) -> go.
         plot_bgcolor="white",
         paper_bgcolor="white",
         showlegend=False,
+    )
+    return figure
+
+
+def build_density_residual_figure(
+    points: tuple[DensityConvergencePoint, ...],
+) -> go.Figure:
+    """Plot finite prime-density and primorial-density residuals across scale."""
+
+    if not points:
+        raise ValueError("at least one convergence point is required")
+
+    x_values = [point.maximum_integer for point in points]
+    figure = go.Figure()
+    figure.add_trace(
+        go.Scatter(
+            x=x_values,
+            y=[point.prime_density_minus_pnt for point in points],
+            mode="lines+markers",
+            name="π(x)/x − 1/ln(x)",
+            line={"color": NEWLY_RESOLVED, "width": 3},
+            marker={"size": 8},
+            hovertemplate="x = %{x:,}<br>prime-density residual = %{y:.8f}<extra></extra>",
+        )
+    )
+    figure.add_trace(
+        go.Scatter(
+            x=x_values,
+            y=[point.wheel_minus_prime_density for point in points],
+            mode="lines+markers",
+            name="Primorial survivor − π(x)/x",
+            line={"color": UNRESOLVED_CANDIDATE, "width": 3},
+            marker={"size": 8},
+            hovertemplate="x = %{x:,}<br>sieve-to-prime residual = %{y:.8f}<extra></extra>",
+        )
+    )
+    figure.add_hline(y=0, line={"color": MUTED, "width": 1.5, "dash": "dot"})
+    figure.update_xaxes(title="x", type="log", tickformat="~s")
+    figure.update_yaxes(title="Signed density residual", zeroline=False)
+    figure.update_layout(
+        height=460,
+        margin={"l": 55, "r": 20, "t": 35, "b": 45},
+        legend={"orientation": "h", "y": 1.1},
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+    )
+    return figure
+
+
+def build_asymptotic_residual_figure(
+    points: tuple[DensityConvergencePoint, ...],
+) -> go.Figure:
+    """Plot residuals against the Mertens and sqrt-cutoff asymptotic references."""
+
+    if not points:
+        raise ValueError("at least one convergence point is required")
+
+    x_values = [point.maximum_integer for point in points]
+    figure = go.Figure()
+    figure.add_trace(
+        go.Scatter(
+            x=x_values,
+            y=[point.wheel_ratio_error for point in points],
+            mode="lines+markers",
+            name="Survivor/PNT ratio − 2e^(−γ)",
+            line={"color": CONFIRMED_PRIME, "width": 3},
+            marker={"size": 8},
+            hovertemplate="x = %{x:,}<br>ratio residual = %{y:.8f}<extra></extra>",
+        )
+    )
+    figure.add_trace(
+        go.Scatter(
+            x=x_values,
+            y=[point.mertens_absolute_error for point in points],
+            mode="lines+markers",
+            name="Exact survivor − Mertens estimate",
+            line={"color": UNRESOLVED_CANDIDATE, "width": 2, "dash": "dash"},
+            marker={"size": 7},
+            hovertemplate="x = %{x:,}<br>Mertens residual = %{y:.8f}<extra></extra>",
+        )
+    )
+    figure.add_hline(y=0, line={"color": MUTED, "width": 1.5, "dash": "dot"})
+    figure.update_xaxes(title="x", type="log", tickformat="~s")
+    figure.update_yaxes(title="Signed residual", zeroline=False)
+    figure.update_layout(
+        height=460,
+        margin={"l": 55, "r": 20, "t": 35, "b": 45},
+        legend={"orientation": "h", "y": 1.1},
+        plot_bgcolor="white",
+        paper_bgcolor="white",
     )
     return figure
