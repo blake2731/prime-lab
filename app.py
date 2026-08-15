@@ -9,6 +9,7 @@ from prime_lab.residue_analysis import residue_class_summaries
 from ui.candidate_grid import build_candidate_figure
 from ui.filter_efficiency import build_filter_efficiency_figure
 from ui.residue_structure import build_residue_figure
+from ui.sieve_animation import build_sieve_animation
 
 
 FILTER_PRIMES = (
@@ -38,6 +39,7 @@ CUSTOM_WIDTH_VIEW = "Custom width grid"
 ACTIVE_PRIME_VIEW = "Selected prime alignment"
 MODULO_30_VIEW = "Modulo 30 residue lanes"
 MAX_VISIBLE_INTEGERS = 5_000
+MAX_PLAYBACK_INTEGERS = 1_500
 DEFAULT_EXPERIMENT = {
     "start": 1,
     "end": 300,
@@ -108,11 +110,11 @@ if "prime_lab_experiment" not in st.session_state:
 
 st.title("Prime Lab")
 st.caption(
-    "Build and inspect one exact sieve state, then test how the same arithmetic structure appears under different projections."
+    "Build and inspect one exact sieve state, replay how it is constructed, then test how the same arithmetic structure appears under different projections."
 )
 
 st.info(
-    "Prime Lab is the baseline instrument for the project. It separates exact state inspection from animation: this page remains static and reproducible, while Kinetic Sieve Lab shows the same divisibility process in motion."
+    "Prime Lab is the baseline instrument for the project. The visual field provides a stable exact state, Sieve playback reconstructs that state filter by filter, and Kinetic Sieve Lab shows divisibility evolving integer by integer."
 )
 
 with st.expander("State model and terminology", expanded=False):
@@ -130,7 +132,7 @@ with st.expander("State model and terminology", expanded=False):
         """
     )
     st.markdown(
-        "**Color key:** teal = confirmed prime, blue = unresolved candidate, amber = first eliminated by the selected final filter, gray = resolved earlier or not a prime candidate."
+        "**Color key:** teal = confirmed prime, blue = unresolved candidate, amber = first eliminated by the selected or currently acting filter, gray = resolved earlier or not a prime candidate."
     )
 
 
@@ -218,6 +220,7 @@ range_start = int(committed["start"])
 range_end = int(committed["end"])
 active_prime = committed["active_prime"]
 range_size = range_end - range_start + 1
+square_width = max(8, int(np.ceil(np.sqrt(range_size))))
 
 if active_prime is None:
     applied_primes: tuple[int, ...] = ()
@@ -294,9 +297,10 @@ else:
     )
 
 
-visual_tab, analysis_tab, data_tab = st.tabs(
+visual_tab, playback_tab, analysis_tab, data_tab = st.tabs(
     [
         "Visual field",
+        "Sieve playback",
         "Filter analysis",
         "Exact data",
     ]
@@ -308,7 +312,6 @@ with visual_tab:
         "Changing projection changes geometry only. If an apparent pattern disappears under a nearby projection, it may be a display artifact rather than arithmetic structure."
     )
 
-    square_width = max(8, int(np.ceil(np.sqrt(range_size))))
     projection_options = [SQUARE_VIEW, CUSTOM_WIDTH_VIEW]
     if active_prime is not None:
         projection_options.append(ACTIVE_PRIME_VIEW)
@@ -534,8 +537,56 @@ with visual_tab:
             )
 
 
+with playback_tab:
+    st.subheader("3. Replay how the sieve state is constructed")
+    st.caption(
+        "Playback advances one prime filter at a time. Amber marks candidates being resolved by the acting prime; after that stage settles, those composites become gray and any newly certified primes remain teal."
+    )
+
+    if not applied_primes:
+        st.info("Apply at least Prime 2 to create a sieve playback sequence.")
+    elif range_size > MAX_PLAYBACK_INTEGERS:
+        st.warning(
+            f"Playback is limited to {MAX_PLAYBACK_INTEGERS:,} visible integers so the browser does not need to retain a large animation payload. The static visual field remains available through {MAX_VISIBLE_INTEGERS:,}."
+        )
+    else:
+        playback_figure = build_sieve_animation(
+            range_start,
+            range_end,
+            applied_primes,
+            grid_width=square_width,
+        )
+        playback_key = f"prime_lab_playback_{state_token}"
+        playback_figure.update_layout(uirevision=playback_key)
+        st.plotly_chart(
+            playback_figure,
+            width="stretch",
+            config={"displaylogo": False, "responsive": True},
+            key=playback_key,
+        )
+
+        st.info(
+            "This replay is filter based rather than time based. Prime 2 acts across the selected range, then Prime 3 acts on the survivors, followed by each later selected prime. Kinetic Sieve Lab is the separate integer by integer motion experiment."
+        )
+
+        with st.expander("How to read the playback", expanded=False):
+            st.markdown(
+                """
+**Blue** cells have not yet been resolved by the filters applied at that moment.
+
+**Amber** cells are being resolved for the first time by the prime named in the status line.
+
+**Gray** cells were resolved at an earlier completed stage.
+
+**Teal** cells are confirmed primes under the proof frontier reached by the active filter sequence.
+
+The stage slider jumps directly to the settled state after any applied prime. The replay button reconstructs the sequence from the unfiltered candidate field.
+                """
+            )
+
+
 with analysis_tab:
-    st.subheader("3. Measure what each prime filter contributes")
+    st.subheader("4. Measure what each prime filter contributes")
     st.caption(
         "A prime receives credit only for candidates that survived every earlier filter and are first resolved by that prime."
     )
@@ -631,7 +682,7 @@ with analysis_tab:
 
 
 with data_tab:
-    st.subheader("4. Inspect and export the exact state")
+    st.subheader("5. Inspect and export the exact state")
     st.caption(
         "The table is the nonvisual form of the experiment. It provides a reproducible record for checking cells, comparing ranges, or continuing analysis outside Prime Lab."
     )
@@ -714,11 +765,13 @@ with data_tab:
 
 **Committed controls.** Range and filter changes are submitted together so an incomplete edit cannot leave the visualization in a transient state.
 
-**Static by design.** Prime Lab displays an exact selected state without playback. Kinetic Sieve Lab is the dedicated real time view of divisibility events.
+**Two temporal scales.** Sieve playback reconstructs the committed state one prime filter at a time. Kinetic Sieve Lab follows the process integer by integer and exposes shared prime meetings.
+
+**Playback limit.** The filter playback is capped at {MAX_PLAYBACK_INTEGERS:,} visible integers to bound the browser animation payload. This does not change the static experiment or the underlying arithmetic.
 
 **Projection control.** Square and custom width grids can create apparent alignments. Compare nearby widths before treating a geometric pattern as arithmetic structure.
 
-**Useful experiment.** Apply filters through Prime 5, inspect the modulo 30 projection, then deepen the filter one prime at a time. The eight prime eligible lanes remain fixed while additional composite positions are progressively resolved.
+**Useful experiment.** Apply filters through Prime 5, inspect the modulo 30 projection, replay the sieve, then deepen the filter one prime at a time. The eight prime eligible lanes remain fixed while additional composite positions are progressively resolved.
 
 **Interpretation.** A visible pattern is an observation. Any proposed relationship should be measured, compared against known modular structure, and reproduced on independent ranges before it is treated as evidence.
             """
