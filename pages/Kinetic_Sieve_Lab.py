@@ -6,6 +6,25 @@ from ui.kinetic_sieve import build_kinetic_sieve_html
 MAXIMUM_FRONTIER = 2_000_000
 
 
+def themed_kinetic_html() -> str:
+    """Apply the Prime Lab type hierarchy inside the isolated animation frame."""
+
+    html = build_kinetic_sieve_html(maximum_value=MAXIMUM_FRONTIER)
+    html = html.replace(
+        'body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }',
+        'body { font-family: "Source Sans 3", "Segoe UI", ui-sans-serif, system-ui, sans-serif; }',
+    )
+    html = html.replace(
+        "ctx.font='650 '+numberFont(value)+'px Inter, system-ui, sans-serif';",
+        "ctx.font='650 '+numberFont(value)+'px \\\"Source Code Pro\\\", Consolas, monospace';",
+    )
+    html = html.replace(
+        "ctx.font='700 12px Inter, system-ui, sans-serif';",
+        "ctx.font='700 12px \\\"Source Code Pro\\\", Consolas, monospace';",
+    )
+    return html
+
+
 st.set_page_config(
     page_title="Kinetic Sieve Lab",
     page_icon="∴",
@@ -42,7 +61,7 @@ with st.expander("Mathematical interpretation", expanded=True):
     )
 
 st.iframe(
-    build_kinetic_sieve_html(maximum_value=MAXIMUM_FRONTIER),
+    themed_kinetic_html(),
     width="stretch",
     height=900,
 )
