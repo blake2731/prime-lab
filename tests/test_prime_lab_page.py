@@ -5,13 +5,20 @@ from streamlit.testing.v1 import AppTest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 APP_PATH = REPO_ROOT / "app.py"
+ENTRYPOINT_PATH = REPO_ROOT / "Prime_Lab.py"
 APP_SOURCE = APP_PATH.read_text(encoding="utf-8")
+ENTRYPOINT_SOURCE = ENTRYPOINT_PATH.read_text(encoding="utf-8")
 
 
 def test_baseline_lab_uses_committed_experiment_form():
     assert 'with st.form("prime_lab_experiment_form"' in APP_SOURCE
     assert '"Apply experiment"' in APP_SOURCE
     assert 'st.session_state["prime_lab_experiment"]' in APP_SOURCE
+
+
+def test_baseline_lab_entrypoint_executes_page_on_every_rerun():
+    assert "from app import *" not in ENTRYPOINT_SOURCE
+    assert "runpy.run_path" in ENTRYPOINT_SOURCE
 
 
 def test_baseline_lab_does_not_use_legacy_sieve_animation():
@@ -30,8 +37,8 @@ def test_baseline_lab_includes_exact_inspection_and_exports():
     assert '"Download filter CSV"' in APP_SOURCE
 
 
-def test_baseline_lab_survives_applying_a_new_range():
-    app = AppTest.from_file(APP_PATH)
+def test_baseline_lab_survives_applying_a_new_range_through_real_entrypoint():
+    app = AppTest.from_file(ENTRYPOINT_PATH)
     app.run(timeout=15)
 
     assert not app.exception
