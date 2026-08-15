@@ -29,9 +29,11 @@ def test_baseline_lab_includes_filter_playback_with_bounded_payload():
     assert "build_sieve_animation" in APP_SOURCE
     assert '"Sieve playback"' in APP_SOURCE
     assert "MAX_PLAYBACK_INTEGERS = 1_500" in APP_SOURCE
-    assert "▶ Play sieve" in ANIMATION_SOURCE
-    assert "prime_{prime}_impact" in ANIMATION_SOURCE
+    assert "▶ Play cascade" in ANIMATION_SOURCE
+    assert "prime_{prime}_focus" in ANIMATION_SOURCE
+    assert "prime_{prime}_cascade_" in ANIMATION_SOURCE
     assert "prime_{prime}_settle" in ANIMATION_SOURCE
+    assert "Reduced motion" in ANIMATION_SOURCE
 
 
 def test_baseline_lab_keys_visualization_to_committed_state():
