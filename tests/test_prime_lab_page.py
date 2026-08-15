@@ -3,7 +3,9 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 
-APP_SOURCE = Path("app.py").read_text(encoding="utf-8")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+APP_PATH = REPO_ROOT / "app.py"
+APP_SOURCE = APP_PATH.read_text(encoding="utf-8")
 
 
 def test_baseline_lab_uses_committed_experiment_form():
@@ -29,7 +31,7 @@ def test_baseline_lab_includes_exact_inspection_and_exports():
 
 
 def test_baseline_lab_survives_applying_a_new_range():
-    app = AppTest.from_file("app.py")
+    app = AppTest.from_file(APP_PATH)
     app.run(timeout=15)
 
     assert not app.exception
