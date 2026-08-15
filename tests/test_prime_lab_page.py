@@ -7,9 +7,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 APP_PATH = REPO_ROOT / "app.py"
 ENTRYPOINT_PATH = REPO_ROOT / "Prime_Lab.py"
 THEME_PATH = REPO_ROOT / ".streamlit" / "config.toml"
+ANIMATION_PATH = REPO_ROOT / "ui" / "sieve_animation.py"
 APP_SOURCE = APP_PATH.read_text(encoding="utf-8")
 ENTRYPOINT_SOURCE = ENTRYPOINT_PATH.read_text(encoding="utf-8")
 THEME_SOURCE = THEME_PATH.read_text(encoding="utf-8")
+ANIMATION_SOURCE = ANIMATION_PATH.read_text(encoding="utf-8")
 
 
 def test_baseline_lab_uses_committed_experiment_form():
@@ -27,7 +29,8 @@ def test_baseline_lab_includes_filter_playback_with_bounded_payload():
     assert "build_sieve_animation" in APP_SOURCE
     assert '"Sieve playback"' in APP_SOURCE
     assert "MAX_PLAYBACK_INTEGERS = 1_500" in APP_SOURCE
-    assert '"Play sieve"' in APP_SOURCE or "▶ Play sieve" in APP_SOURCE
+    assert "▶ Play sieve" in ANIMATION_SOURCE
+    assert "rainfall" not in ANIMATION_SOURCE.lower()
 
 
 def test_baseline_lab_keys_visualization_to_committed_state():
