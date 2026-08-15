@@ -135,7 +135,11 @@ def build_candidate_figure(
                 y=label_y,
                 mode="text",
                 text=label_text,
-                textfont={"size": font_size, "color": label_color},
+                textfont={
+                    "size": font_size,
+                    "color": label_color,
+                    "family": "monospace",
+                },
                 hoverinfo="skip",
                 showlegend=False,
             )
@@ -166,6 +170,8 @@ def build_candidate_figure(
         margin={"l": 10, "r": 10, "t": 45, "b": 10},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
+        font={"family": "sans-serif", "color": INK},
+        hoverlabel={"font": {"family": "sans-serif"}},
         legend={
             "orientation": "h",
             "yanchor": "bottom",
