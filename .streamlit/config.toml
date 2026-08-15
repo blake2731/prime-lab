@@ -11,6 +11,18 @@ buttonRadius = "0.4rem"
 showWidgetBorder = true
 showSidebarBorder = true
 baseFontSize = 16
+baseFontWeight = 400
+
+# Prime Lab typography system.
+# Source Sans, Source Serif, and Source Code ship with Streamlit, so the
+# application gets a deliberate hierarchy without external font requests.
+font = "sans-serif"
+headingFont = "serif"
+codeFont = "monospace"
+headingFontSizes = ["2.55rem", "2.0rem", "1.55rem", "1.25rem", "1.05rem", "0.95rem"]
+headingFontWeights = [600, 600, 600, 600, 600, 600]
+codeFontSize = "0.875rem"
+codeFontWeight = 400
 
 chartCategoricalColors = [
     "#2457E6",
@@ -18,3 +30,9 @@ chartCategoricalColors = [
     "#D97706",
     "#243247"
 ]
+
+[theme.sidebar]
+font = "sans-serif"
+headingFont = "serif"
+codeFont = "monospace"
+headingFontWeights = [600, 600, 600, 600, 600, 600]
